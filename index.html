@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>大原牙醫診所 開單系統</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="大原開單">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    padding: 16px;
+    color: #1a202c;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #2b6cb0;
+    margin-bottom: 20px;
+    padding: 12px 0;
+    border-bottom: 2px solid #bee3f8;
+  }
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .field-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .field-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  textarea, input[type=text] {
+    flex: 1;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: #2d3748;
+    resize: none;
+    min-height: 52px;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+    background: #f7fafc;
+  }
+  input[type=text] { min-height: unset; }
+  textarea:focus, input[type=text]:focus {
+    outline: none;
+    border-color: #4299e1;
+    background: white;
+  }
+  textarea.listening {
+    border-color: #f6ad55;
+    background: #fffaf0;
+    animation: pulse-border 1s infinite;
+  }
+  @keyframes pulse-border {
+    0%, 100% { border-color: #f6ad55; }
+    50% { border-color: #ed8936; }
+  }
+  .mic-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: #4299e1;
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-top: 2px;
+    box-shadow: 0 2px 6px rgba(66,153,225,0.4);
+  }
+  .mic-btn:active { transform: scale(0.93); }
+  .mic-btn.active {
+    background: #e53e3e;
+    box-shadow: 0 0 0 6px rgba(229,62,62,0.2);
+    animation: pulse-btn 1s infinite;
+  }
+  @keyframes pulse-btn {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(229,62,62,0.2); }
+    50% { box-shadow: 0 0 0 10px rgba(229,62,62,0.05); }
+  }
+  .status-bar {
+    text-align: center;
+    font-size: 0.82rem;
+    color: #a0aec0;
+    margin: 4px 0 16px;
+    min-height: 18px;
+  }
+  .status-bar.listening-status { color: #dd6b20; font-weight: 600; }
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #2b6cb0, #4299e1);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    box-shadow: 0 4px 14px rgba(43,108,176,0.35);
+    transition: all 0.2s;
+  }
+  .submit-btn:active { transform: scale(0.97); }
+  .submit-btn:disabled { background: #a0aec0; box-shadow: none; cursor: not-allowed; }
+  .clear-btn {
+    width: 100%;
+    padding: 12px;
+    background: white;
+    color: #718096;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+  .clear-btn:active { background: #f7fafc; }
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #2d3748;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: transform 0.3s ease;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: #276749; }
+  .toast.error { background: #c53030; }
+  .config-banner {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 0.82rem;
+    color: #856404;
+    line-height: 1.5;
+  }
+  .config-banner a { color: #0d6efd; }
+  .history-section {
+    margin-top: 8px;
+  }
+  .history-title {
+    font-size: 0.8rem;
+    color: #a0aec0;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .history-item {
+    background: #f7fafc;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    color: #4a5568;
+    border-left: 3px solid #4299e1;
+  }
+  .history-item .h-name { font-weight: 700; color: #2b6cb0; margin-bottom: 4px; }
+  .history-item .h-row { color: #718096; }
+  .history-item .h-time { font-size: 0.75rem; color: #a0aec0; margin-top: 4px; }
+  .loc-group { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 8px; }
+  .loc-chip { padding: 7px 13px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #f7fafc; font-size: 0.9rem; color: #4a5568; cursor: pointer; user-select: none; transition: all 0.15s; font-family: inherit; }
+  .loc-chip.selected { background: #2b6cb0; border-color: #2b6cb0; color: white; font-weight: 600; }
+  .loc-chip.flag-on { background: #dd6b20; border-color: #dd6b20; color: white; font-weight: 600; }
+  .loc-result { font-size: 0.85rem; color: #718096; margin-top: 6px; min-height: 20px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .loc-tag { display: inline-flex; align-items: center; background: #2b6cb0; color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.85rem; }
+  .loc-tag-del { background: none; border: none; color: white; cursor: pointer; padding: 0 0 0 5px; font-size: 0.8rem; line-height: 1; opacity: 0.85; }
+  .loc-chip.pending { background: #ebf8ff; border-color: #63b3ed; color: #2b6cb0; font-weight: 600; }
+  .loc-chip-confirm { background: #276749 !important; border-color: #276749 !important; color: white !important; font-weight: 600; }
+  .loc-preview { font-size: 0.85rem; color: #2b6cb0; min-height: 18px; margin: 4px 0 2px; font-weight: 600; }
+  .loc-divider { width: 100%; height: 1px; background: #e2e8f0; margin: 4px 0; }
+  .section-divider { height: 6px; background: #e53e3e; border-radius: 3px; margin: 18px 0; opacity: 0.85; }
+  .quick-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 2px dashed #cbd5e0; }
+  .quick-chips .qc-group { width: 100%; display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 2px; }
+  .qc-divider { width: 100%; font-size: 0.95rem; color: #2c5282; font-weight: 700; letter-spacing: 0.03em; margin: 8px 0 4px; }
+  .qc-btn-note { padding: 5px 11px; border-radius: 16px; border: 1.5px solid #c8a97e; background: #fdf6ee; font-size: 0.82rem; color: #7b4f1e; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+  .qc-btn-note:active { background: #7b4f1e; color: white; transform: scale(0.95); }
+  .detail-hint { font-size: 0.85rem; color: #a0aec0; padding: 6px 0; }
+  select {
+    width: 100%; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;
+    font-size: 1rem; font-family: inherit; color: #2d3748; background: #f7fafc;
+    appearance: none; -webkit-appearance: none;
+    background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 20 20%22><path fill=%22%23718096%22 d=%22M5 7l5 5 5-5%22/></svg>');
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+</style>
+</head>
+<body>
+
+<h1>🦷 大原牙醫診所 開單系統</h1>
+
+<div class="config-banner" id="configBanner">
+  ⚙️ 首次使用請先設定 Google Sheet 連結。<br>
+  <a href="#" onclick="showConfig()">點此設定 Apps Script 網址</a>
+</div>
+
+<!-- iOS 語音說明 -->
+<div id="iosBanner" style="display:none;background:#ebf8ff;border:1px solid #bee3f8;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.85rem;color:#2c5282;line-height:1.7;">
+  📱 <strong>iPhone 語音輸入方式：</strong><br>
+  點姓名欄位 → 鍵盤出現後 → 點鍵盤上的 <strong>🎤</strong>（麥克風鍵）開始說話<br>
+  <span style="font-size:0.78rem;color:#4a7fa5;">若鍵盤沒有🎤，請至 設定 → 一般 → 鍵盤 → 開啟「語音輸入」</span>
+</div>
+
+<!-- 患者姓名 -->
+<div class="card">
+  <div class="field-label">患者姓名</div>
+  <div class="field-row">
+    <textarea id="name" rows="1" placeholder="點此欄位，再按鍵盤🎤說話"></textarea>
+    <button class="mic-btn" id="mic-name" onclick="toggleVoice('name')" title="語音輸入">🎤</button>
+    <button class="mic-btn" style="background:#e53e3e;box-shadow:0 2px 6px rgba(229,62,62,0.4);" onclick="clearFieldWithConfirm('name')" title="清除姓名">🗑️</button>
+  </div>
+  <button id="refreshNamesBtn" style="width:100%;padding:8px;margin-top:6px;background:#2b6cb0;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer;" onclick="manualRefreshNames()">🔄 立即更新姓名比對清單</button>
+  <div style="font-size:0.75rem;color:#a0aec0;margin-top:4px;text-align:center;">（每晚也會自動更新一次）</div>
+  <div class="quick-chips" id="name-suggest" style="margin-top:6px;"></div>
+</div>
+
+<!-- 項目種類 -->
+<div class="card">
+  <div class="field-label">項目種類</div>
+  <div class="loc-group" id="main-cat-chips"></div>
+</div>
+
+<!-- 明細 -->
+<div class="card">
+  <div class="field-label">明細</div>
+  <div id="main-chip-groups"><div class="detail-hint">請先選擇上方的項目種類</div></div>
+  <div id="main-color-row" style="display:none;margin-top:8px;">
+    <div class="field-label" style="margin-top:8px;">顏色</div>
+    <div class="field-row"><input id="main-color" type="text" placeholder="例如 A2 / A3.5 / 依現場比色"></div>
+  </div>
+</div>
+
+<!-- 部位 -->
+<div class="card">
+  <div class="field-label">部位</div>
+  <div class="loc-group" data-loc-quad-group="main-position">
+    <button class="loc-chip" data-loc-quad="main-position" onclick="toggleQuadrant('main-position','左上',this)">左上</button>
+    <button class="loc-chip" data-loc-quad="main-position" onclick="toggleQuadrant('main-position','左下',this)">左下</button>
+    <button class="loc-chip" data-loc-quad="main-position" onclick="toggleQuadrant('main-position','右上',this)">右上</button>
+    <button class="loc-chip" data-loc-quad="main-position" onclick="toggleQuadrant('main-position','右下',this)">右下</button>
+    <button class="loc-chip" onclick="toggleQuadrant('main-position','全口',this)">全口</button>
+    <button class="loc-chip" onclick="toggleQuadrant('main-position','上顎',this)">上顎</button>
+    <button class="loc-chip" onclick="toggleQuadrant('main-position','下顎',this)">下顎</button>
+  </div>
+  <div class="loc-divider"></div>
+  <div class="loc-group">
+    <button class="loc-chip" onclick="appendTooth('main-position','1')">1</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','2')">2</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','3')">3</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','4')">4</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','5')">5</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','6')">6</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','7')">7</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','8')">8</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','9')">9</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','X')">X</button>
+  </div>
+  <div class="loc-group">
+    <button class="loc-chip" onclick="appendTooth('main-position','A')">A</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','B')">B</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','C')">C</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','D')">D</button>
+    <button class="loc-chip" onclick="appendTooth('main-position','E')">E</button>
+    <button class="loc-chip loc-chip-confirm" onclick="commitLoc('main-position')" id="loc-confirm-main-position" style="display:none">加入</button>
+  </div>
+  <div class="loc-preview" id="main-position-preview"></div>
+  <div class="loc-result" id="main-position-result"><span style="color:#a0aec0">尚未選擇</span></div>
+  <input type="hidden" id="main-position" value="">
+</div>
+
+<!-- 技工所 -->
+<div class="card">
+  <div class="field-label">技工所</div>
+  <select id="lab">
+    <option value="">— 不需技工所 —</option>
+    <option value="平山">平山</option>
+    <option value="柏創">柏創</option>
+    <option value="京典">京典</option>
+    <option value="美加">美加</option>
+  </select>
+</div>
+
+<!-- 交代事項 -->
+<div class="card">
+  <div class="field-label">交代事項</div>
+  <div class="field-row">
+    <textarea id="note" rows="2" placeholder="點下方快速詞 或 按🎤語音輸入"></textarea>
+    <button class="mic-btn" id="mic-note" onclick="toggleVoice('note')" title="語音輸入">🎤</button>
+  </div>
+  <div class="quick-chips" id="qc-note"></div>
+</div>
+
+<div class="status-bar" id="statusBar">點擊 🎤 開始語音輸入</div>
+
+<button class="submit-btn" onclick="playBell(); submitData()" id="submitBtn">上傳至 Google Sheet</button>
+<button class="clear-btn" onclick="testConnection()" style="margin-top:8px;color:#2b6cb0;border-color:#bee3f8;">🔗 測試 Google Sheet 連線</button>
+<button class="clear-btn" onclick="diagnoseMic()" style="margin-top:4px;color:#805ad5;border-color:#e9d8fd;">🔍 語音診斷</button>
+<button class="clear-btn" onclick="clearAll()">清除重填</button>
+<button class="clear-btn" onclick="clearHistory()" style="color:#e53e3e;border-color:#fed7d7;margin-top:4px;">🗑 清除今日紀錄</button>
+
+<!-- 今日紀錄 -->
+<div class="card history-section" style="margin-top:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <div class="history-title" style="margin-bottom:0;">📋 今日所有上傳紀錄</div>
+    <button onclick="loadSharedHistory()" id="refreshBtn" style="background:#ebf8ff;border:1px solid #bee3f8;color:#2b6cb0;border-radius:8px;padding:5px 12px;font-size:0.8rem;cursor:pointer;">🔄 重新整理</button>
+  </div>
+  <div id="historyList"><div style="color:#a0aec0;font-size:0.85rem;">載入中...</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- iOS 語音引導提示 -->
+<div id="iosGuide" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#2b6cb0;color:white;padding:18px 20px;z-index:999;align-items:center;gap:14px;font-size:1rem;line-height:1.5;">
+  <div style="font-size:2rem;">⌨️</div>
+  <div>鍵盤已開啟，請點鍵盤上的<br><strong>🎤 麥克風按鍵</strong>開始說話</div>
+  <button onclick="document.getElementById('iosGuide').style.display='none'" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">✕</button>
+</div>
+
+<!-- 編輯 Modal -->
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;padding:16px;align-items:flex-start;justify-content:center;overflow-y:auto;">
+  <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:480px;margin-top:20px;">
+    <h3 style="margin-bottom:16px;color:#2b6cb0;">✏️ 修改紀錄</h3>
+
+    <div style="margin-bottom:12px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">患者姓名</div>
+      <div class="field-row">
+        <input id="edit-name" type="text">
+        <button class="mic-btn" id="mic-edit-name" onclick="toggleVoice('edit-name')" style="margin-top:0">🎤</button>
+        <button class="mic-btn" style="margin-top:0;background:#e53e3e;box-shadow:0 2px 6px rgba(229,62,62,0.4);" onclick="clearFieldWithConfirm('edit-name')" title="清除姓名">🗑️</button>
+      </div>
+      <div class="quick-chips" id="edit-name-suggest" style="margin-top:6px;"></div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">項目種類</div>
+      <div class="loc-group" id="edit-cat-chips"></div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">明細</div>
+      <div id="edit-chip-groups"><div class="detail-hint">請先選擇上方的項目種類</div></div>
+      <div id="edit-color-row" style="display:none;margin-top:8px;">
+        <div style="font-size:0.8rem;font-weight:600;color:#718096;margin:8px 0 6px;">顏色</div>
+        <div class="field-row"><input id="edit-color" type="text"></div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div style="margin-bottom:12px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">部位</div>
+      <div class="loc-group" data-loc-quad-group="edit-position">
+        <button class="loc-chip" data-loc-quad="edit-position" onclick="toggleQuadrant('edit-position','左上',this)">左上</button>
+        <button class="loc-chip" data-loc-quad="edit-position" onclick="toggleQuadrant('edit-position','左下',this)">左下</button>
+        <button class="loc-chip" data-loc-quad="edit-position" onclick="toggleQuadrant('edit-position','右上',this)">右上</button>
+        <button class="loc-chip" data-loc-quad="edit-position" onclick="toggleQuadrant('edit-position','右下',this)">右下</button>
+        <button class="loc-chip" onclick="toggleQuadrant('edit-position','全口',this)">全口</button>
+        <button class="loc-chip" onclick="toggleQuadrant('edit-position','上顎',this)">上顎</button>
+        <button class="loc-chip" onclick="toggleQuadrant('edit-position','下顎',this)">下顎</button>
+      </div>
+      <div class="loc-divider"></div>
+      <div class="loc-group">
+        <button class="loc-chip" onclick="appendTooth('edit-position','1')">1</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','2')">2</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','3')">3</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','4')">4</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','5')">5</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','6')">6</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','7')">7</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','8')">8</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','9')">9</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','X')">X</button>
+      </div>
+      <div class="loc-group">
+        <button class="loc-chip" onclick="appendTooth('edit-position','A')">A</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','B')">B</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','C')">C</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','D')">D</button>
+        <button class="loc-chip" onclick="appendTooth('edit-position','E')">E</button>
+        <button class="loc-chip loc-chip-confirm" onclick="commitLoc('edit-position')" id="loc-confirm-edit-position" style="display:none">加入</button>
+      </div>
+      <div class="loc-preview" id="edit-position-preview"></div>
+      <div class="loc-result" id="edit-position-result">尚未選擇</div>
+      <input type="hidden" id="edit-position" value="">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">技工所</div>
+      <select id="edit-lab">
+        <option value="">— 不需技工所 —</option>
+        <option value="平山">平山</option>
+        <option value="柏創">柏創</option>
+        <option value="京典">京典</option>
+        <option value="美加">美加</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">交代事項</div>
+      <div class="field-row">
+        <textarea id="edit-note" rows="2" style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:1rem;font-family:inherit;resize:none;"></textarea>
+        <button class="mic-btn" id="mic-edit-note" onclick="toggleVoice('edit-note')" style="margin-top:0">🎤</button>
+      </div>
+      <div class="quick-chips" id="qc-edit-note"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button onclick="playBell(); saveEdit()" style="flex:1;padding:14px;background:#2b6cb0;color:white;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">💾 儲存修改</button>
+      <button onclick="closeEdit()" style="flex:1;padding:14px;background:#e2e8f0;color:#4a5568;border:none;border-radius:12px;font-size:1rem;cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Config Modal -->
+<div id="configModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;padding:24px;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:24px;width:100%;max-width:480px;">
+    <h3 style="margin-bottom:12px;color:#2b6cb0;">設定 Google Apps Script 網址</h3>
+    <p style="font-size:0.82rem;color:#718096;margin-bottom:16px;line-height:1.6;">
+      請先在你的 Google Sheet 上依「工具 → Apps Script」貼上下方程式碼並部署為 Web App，取得網址後貼入下方。<br>
+      <a href="#" onclick="showGuide()" style="color:#4299e1;">查看 Apps Script 程式碼</a>
+    </p>
+    <textarea id="scriptUrl" rows="3" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px;font-size:0.85rem;font-family:monospace;" placeholder="https://script.google.com/macros/s/..."></textarea>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button onclick="saveConfig()" style="flex:1;padding:12px;background:#4299e1;color:white;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;">儲存</button>
+      <button onclick="closeConfig()" style="flex:1;padding:12px;background:#e2e8f0;color:#4a5568;border:none;border-radius:10px;font-size:1rem;cursor:pointer;">取消</button>
+    </div>
+    <hr style="margin:16px 0;border:none;border-top:1px solid #e2e8f0;">
+    <div id="guideArea" style="display:none;font-size:0.8rem;color:#4a5568;line-height:1.8;">
+      <b>Apps Script 程式碼：</b>
+      <pre id="scriptCode" style="background:#f7fafc;border-radius:8px;padding:10px;overflow-x:auto;font-size:0.75rem;margin-top:8px;white-space:pre-wrap;border:1px solid #e2e8f0;"></pre>
+      <button onclick="copyScript()" style="margin-top:8px;padding:8px 16px;background:#48bb78;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;">複製程式碼</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const APPS_SCRIPT_CODE = `function doGet(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const action = (e.parameter.action || 'insert');
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','部位','交代事項','ID']);
+  }
+
+  if (action === 'getAll') {
+    const data = sheet.getDataRange().getValues();
+    const rows = [];
+    for (let i = 1; i < data.length; i++) {
+      const r = data[i];
+      if (!r[8]) continue;
+      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], position:r[6], note:r[7], id:String(r[8]) });
+    }
+    rows.reverse();
+    return ContentService.createTextOutput(JSON.stringify({ result:'success', rows }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === 'getNames') {
+    const data = sheet.getDataRange().getValues();
+    const names = [...new Set(data.slice(1).map(r => r[1]).filter(Boolean))];
+    return ContentService.createTextOutput(JSON.stringify({ result:'success', names }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === 'update') {
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][8]) === String(e.parameter.id)) {
+        sheet.getRange(i + 1, 1, 1, 9).setValues([[
+          new Date().toLocaleString('zh-TW'),
+          e.parameter.name || '',
+          e.parameter.category || '',
+          e.parameter.detail || '',
+          e.parameter.lab || '',
+          e.parameter.color || '',
+          e.parameter.position || '',
+          e.parameter.note || '',
+          e.parameter.id
+        ]]);
+        break;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ result:'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  sheet.appendRow([
+    new Date().toLocaleString('zh-TW'),
+    e.parameter.name || '',
+    e.parameter.category || '',
+    e.parameter.detail || '',
+    e.parameter.lab || '',
+    e.parameter.color || '',
+    e.parameter.position || '',
+    e.parameter.note || '',
+    e.parameter.id || ''
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({ result:'success' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+// ── 項目種類設定 ──
+const CATEGORIES = [
+  { id:'fixed',      label:'固定假牙',   icon:'🦷', material:['鈦合金傳統瓷牙','鈀合金傳統瓷牙','鈷鉻合金傳統瓷牙','全瓷冠','鈦合金金屬冠','鈷鉻合金金屬冠'], color:true },
+  { id:'removable',  label:'活動假牙',   icon:'😬', type:['全口假牙','臨時活動假牙','正式活動假牙'], arch:['上顎','下顎','全口'], color:true },
+  { id:'core',       label:'鑄心',       icon:'🔩', type:['P1','P2'] },
+  { id:'temp',       label:'臨時假牙',   icon:'⏳', arch:['上顎','下顎','全口'], color:true },
+  { id:'expander',   label:'擴張器',     icon:'↔️', arch:['上顎','下顎','全口'], redo:true, clear:true },
+  { id:'guide',      label:'誘導板',     icon:'📐', arch:['上顎','下顎','全口'], redo:true, clear:true },
+  { id:'retainer',   label:'維持器',     icon:'🛡️', arch:['上顎','下顎','全口'], redo:true, clear:true },
+  { id:'softliner',  label:'軟墊',       icon:'🧽', arch:['上顎','下顎','全口'], redo:true, clear:true },
+  { id:'functional', label:'功能性矯正器', icon:'🦴', arch:['上顎','下顎','全口'] },
+  { id:'mixed',      label:'混合齒列矯正', icon:'🪥', arch:['上顎','下顎','全口'] },
+  { id:'fluoride',   label:'塗氟矯正',   icon:'💧', type:['塗氟','矯正拔牙'] },
+];
+
+const mainState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false };
+const editState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false };
+
+function getCat(catId) { return CATEGORIES.find(c => c.id === catId); }
+
+function renderCatChips(prefix) {
+  const state = prefix === 'main' ? mainState : editState;
+  const el = document.getElementById(prefix + '-cat-chips');
+  el.innerHTML = CATEGORIES.map(c =>
+    `<button class="loc-chip${state.catId === c.id ? ' selected' : ''}" onclick="selectCategory('${prefix}','${c.id}')">${c.icon} ${c.label}</button>`
+  ).join('');
+}
+
+function selectCategory(prefix, catId) {
+  const state = prefix === 'main' ? mainState : editState;
+  if (state.catId === catId) return;
+  state.catId = catId;
+  state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false;
+  renderCatChips(prefix);
+  renderDetailFields(prefix);
+}
+
+function pickDetail(prefix, key, value) {
+  const state = prefix === 'main' ? mainState : editState;
+  state[key] = (state[key] === value) ? null : value;
+  renderDetailFields(prefix);
+}
+
+function toggleDetailFlag(prefix, key) {
+  const state = prefix === 'main' ? mainState : editState;
+  state[key] = !state[key];
+  renderDetailFields(prefix);
+}
+
+function renderDetailFields(prefix) {
+  const state = prefix === 'main' ? mainState : editState;
+  const groupsEl = document.getElementById(prefix + '-chip-groups');
+  const colorRow = document.getElementById(prefix + '-color-row');
+  const cat = getCat(state.catId);
+
+  if (!cat) {
+    groupsEl.innerHTML = '<div class="detail-hint">請先選擇上方的項目種類</div>';
+    colorRow.style.display = 'none';
+    return;
+  }
+
+  let html = '';
+  const chipGroup = (label, key, options) => {
+    html += `<div class="field-label" style="margin-top:8px;">${label}</div><div class="loc-group">` +
+      options.map(o => `<button class="loc-chip${state[key] === o ? ' selected' : ''}" onclick="pickDetail('${prefix}','${key}','${o}')">${o}</button>`).join('') +
+      `</div>`;
+  };
+  if (cat.material) chipGroup('材質', 'material', cat.material);
+  if (cat.type) chipGroup('類型', 'type', cat.type);
+  if (cat.arch) chipGroup('顎位', 'arch', cat.arch);
+  if (cat.redo || cat.clear) {
+    html += `<div class="loc-group" style="margin-top:8px;">`;
+    if (cat.redo) html += `<button class="loc-chip${state.redo ? ' flag-on' : ''}" onclick="toggleDetailFlag('${prefix}','redo')">🔁 重作</button>`;
+    if (cat.clear) html += `<button class="loc-chip${state.clear ? ' flag-on' : ''}" onclick="toggleDetailFlag('${prefix}','clear')">🔍 透明</button>`;
+    html += `</div>`;
+  }
+  groupsEl.innerHTML = html;
+  colorRow.style.display = cat.color ? 'block' : 'none';
+}
+
+function summarizeDetail(prefix) {
+  const state = prefix === 'main' ? mainState : editState;
+  const parts = [];
+  if (state.material) parts.push(state.material);
+  if (state.type) parts.push(state.type);
+  if (state.arch) parts.push(state.arch);
+  if (state.redo) parts.push('重作');
+  if (state.clear) parts.push('透明');
+  return parts.join('、');
+}
+
+function resetCategoryState(prefix) {
+  const state = prefix === 'main' ? mainState : editState;
+  state.catId = null; state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false;
+  renderCatChips(prefix);
+  renderDetailFields(prefix);
+}
+
+let recognition = null;
+let currentField = null;
+let isListening = false;
+const DEFAULT_SCRIPT_URL = '';
+let scriptUrl = localStorage.getItem('daiyuanScriptUrl') || DEFAULT_SCRIPT_URL;
+let history = JSON.parse(localStorage.getItem('daiyuanHistory') || '[]');
+
+// ── 歷史患者姓名清單（語音/打字辨識比對建議用）── 全新診所，僅由 Google Sheet 累積，不預帶其他診所資料
+let serverNamePool = [];
+const NAME_BLOCKLIST = new Set(['test', '測試', '試驗']);
+
+async function loadServerNames() {
+  if (!scriptUrl) return;
+  try {
+    const res = await fetch(scriptUrl + '?action=getNames&_=' + Date.now(), { cache: 'no-store' });
+    const data = await res.json();
+    if (data.result === 'success' && Array.isArray(data.names)) {
+      serverNamePool = data.names.filter(n => !NAME_BLOCKLIST.has(n));
+    }
+  } catch (e) {}
+}
+
+async function manualRefreshNames() {
+  const btn = document.getElementById('refreshNamesBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 更新中...';
+  await loadServerNames();
+  showToast('✅ 姓名清單已更新（' + serverNamePool.length + ' 筆）', 'success');
+  btn.disabled = false;
+  btn.textContent = '🔄 立即更新姓名比對清單';
+}
+
+function getNamePool() {
+  const fromHistory = history.map(h => h.name).filter(Boolean);
+  return [...new Set([...serverNamePool, ...fromHistory])];
+}
+
+function levenshtein(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function suggestNames(query) {
+  query = (query || '').trim();
+  if (!query) return [];
+  const pool = getNamePool();
+  if (pool.includes(query)) return [];
+  const scored = pool
+    .map(n => ({ name: n, dist: levenshtein(query, n) }))
+    .filter(s => s.dist > 0 && s.dist <= Math.max(1, Math.ceil(Math.max(query.length, s.name.length) / 2)))
+    .sort((a, b) => a.dist - b.dist);
+  return scored.slice(0, 5).map(s => s.name);
+}
+
+function updateNameSuggestions(fieldId) {
+  const el = document.getElementById(fieldId + '-suggest');
+  if (!el) return;
+  const query = document.getElementById(fieldId).value;
+  const matches = suggestNames(query);
+  if (matches.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="qc-divider" style="margin:0 0 2px;">是不是要找</div>' +
+    matches.map(n => `<button class="qc-btn-note" onclick="pickSuggestedName('${fieldId}','${n}')">${n}</button>`).join('');
+}
+
+function pickSuggestedName(fieldId, name) {
+  const ta = document.getElementById(fieldId);
+  ta.value = name;
+  document.getElementById(fieldId + '-suggest').innerHTML = '';
+  ta.focus();
+}
+
+function clearFieldWithConfirm(fieldId) {
+  if (!confirm('確定要清除這個欄位的內容嗎？')) return;
+  const ta = document.getElementById(fieldId);
+  ta.value = '';
+  if (ta.style) ta.style.height = '';
+  const suggestEl = document.getElementById(fieldId + '-suggest');
+  if (suggestEl) suggestEl.innerHTML = '';
+  ta.focus();
+}
+
+async function loadSharedHistory() {
+  const btn = document.getElementById('refreshBtn');
+  if (btn) { btn.textContent = '⏳ 載入中...'; btn.disabled = true; }
+  if (scriptUrl) {
+    try {
+      const res = await fetch(scriptUrl + '?action=getAll');
+      const data = await res.json();
+      if (data.result === 'success' && Array.isArray(data.rows) && data.rows.length > 0) {
+        history = data.rows.map(r => ({ ...r, time: r.time }));
+        localStorage.setItem('daiyuanHistory', JSON.stringify(history));
+      }
+    } catch(e) {
+      // 網路失敗或 CORS 擋住時用本機快取
+    }
+  }
+  renderHistory();
+  if (btn) { btn.textContent = '🔄 重新整理'; btn.disabled = false; }
+}
+
+function init() {
+  if (scriptUrl) {
+    document.getElementById('configBanner').style.display = 'none';
+  }
+  if (isIOS) {
+    document.getElementById('iosBanner').style.display = 'block';
+    document.getElementById('statusBar').textContent = '點欄位 → 鍵盤出現 → 按鍵盤上的 🎤';
+    document.getElementById('name').placeholder = '點此，鍵盤出現後按 🎤 說話';
+  }
+  checkSpeechSupport();
+  loadServerNames();
+  loadSharedHistory();
+  renderCatChips('main');
+  renderDetailFields('main');
+  renderCatChips('edit');
+  renderDetailFields('edit');
+  renderQuickChips('qc-note', 'note');
+  renderQuickChips('qc-edit-note', 'edit-note');
+  document.getElementById('name').addEventListener('input', () => updateNameSuggestions('name'));
+  document.getElementById('edit-name').addEventListener('input', () => updateNameSuggestions('edit-name'));
+}
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+function checkSpeechSupport() {
+  if (isIOS) return;
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('statusBar').textContent = '⚠️ 請使用 Chrome 或 Safari';
+    document.querySelectorAll('.mic-btn').forEach(b => b.disabled = true);
+  }
+}
+
+function toggleVoice(fieldId) {
+  if (isIOS) {
+    const ta = document.getElementById(fieldId);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = ta.value.length;
+    showIOSGuide();
+    return;
+  }
+  if (isListening && currentField === fieldId) { stopVoice(); return; }
+  if (isListening) stopVoice();
+  startVoice(fieldId);
+}
+
+function showIOSGuide() {
+  const guide = document.getElementById('iosGuide');
+  guide.style.display = 'flex';
+  setTimeout(() => guide.style.display = 'none', 4000);
+}
+
+function startVoice(fieldId) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setStatus('⚠️ 請使用 Safari 或 Chrome'); return; }
+
+  recognition = new SR();
+  recognition.lang = 'zh-TW';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  currentField = fieldId;
+  isListening = true;
+  const btn = document.getElementById('mic-' + fieldId);
+  const ta = document.getElementById(fieldId);
+  btn.classList.add('active');
+  btn.textContent = '⏹';
+  ta.classList.add('listening');
+
+  let baseText = ta.value;
+  let gotFinalText = false;
+
+  recognition.onstart = () => setStatus('🔴 收音中，說完會自動辨識...', true);
+
+  recognition.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (final) { baseText += final; gotFinalText = true; }
+    ta.value = baseText + interim;
+    autoResize(ta);
+  };
+
+  recognition.onerror = (e) => {
+    const msgs = { 'no-speech': '沒偵測到聲音，請再試', 'network': '網路錯誤', 'not-allowed': '麥克風被拒絕，請在設定中允許', 'audio-capture': '找不到麥克風' };
+    setStatus('⚠️ ' + (msgs[e.error] || ('辨識失敗：' + e.error + '，請再試')));
+    stopVoice();
+  };
+
+  recognition.onend = () => {
+    stopVoice();
+    setStatus(gotFinalText ? '✅ 說完，再按 🎤 繼續輸入' : '⚠️ 沒收到文字，請靠近麥克風再說一次');
+    if (gotFinalText && (fieldId === 'name' || fieldId === 'edit-name')) updateNameSuggestions(fieldId);
+  };
+
+  recognition.start();
+}
+
+function stopVoice() {
+  if (recognition) {
+    recognition.onend = null;
+    recognition.stop();
+    recognition = null;
+  }
+  if (currentField) {
+    const btn = document.getElementById('mic-' + currentField);
+    const ta = document.getElementById(currentField);
+    if (btn) { btn.classList.remove('active'); btn.textContent = '🎤'; }
+    if (ta) ta.classList.remove('listening');
+  }
+  isListening = false;
+  currentField = null;
+  setStatus('點擊 🎤 開始語音輸入');
+}
+
+function autoResize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+
+function setStatus(msg, isActive = false) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.className = 'status-bar' + (isActive ? ' listening-status' : '');
+}
+
+async function diagnoseMic() {
+  const hasSpeech = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+  const ua = navigator.userAgent;
+  const isIOSDevice = /iPad|iPhone|iPod/.test(ua);
+  const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+  const isChromeIOS = /CriOS/.test(ua);
+
+  let msg = `裝置：${isIOSDevice ? 'iOS' : 'Android/桌機'}\n`;
+  msg += `瀏覽器：${isChromeIOS ? 'Chrome(iOS)' : isSafari ? 'Safari' : 'Chrome/其他'}\n`;
+  msg += `語音API：${hasSpeech ? '✅ 支援' : '❌ 不支援'}\n`;
+  msg += `HTTPS：${location.protocol === 'https:' ? '✅' : '❌ 需要HTTPS'}\n`;
+
+  if (isIOSDevice && isChromeIOS) {
+    msg += '\n⚠️ iOS Chrome 不支援語音辨識\n請改用 Safari 開啟此頁面';
+  } else if (isIOSDevice && !hasSpeech) {
+    msg += '\n⚠️ 請更新 iOS 至 14.5 以上\n並使用 Safari 開啟';
+  } else if (!hasSpeech) {
+    msg += '\n⚠️ 請改用 Chrome 或 Safari';
+  } else {
+    msg += '\n正在測試麥克風權限...';
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      msg += '\n麥克風：✅ 已授權';
+    } catch(e) {
+      msg += '\n麥克風：❌ ' + e.message + '\n請在瀏覽器設定中允許麥克風';
+    }
+  }
+
+  alert(msg);
+}
+
+async function testConnection() {
+  if (!scriptUrl) { showConfig(); return; }
+  setStatus('🔗 測試連線中...', true);
+  try {
+    const id = Date.now().toString();
+    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', position:'', note:'可刪除' });
+    await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    showToast('✅ 連線測試成功！請查看 Google Sheet', 'success');
+    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', position:'', note:'可刪除', id });
+  } catch (err) {
+    showToast('❌ 連線失敗：' + err.message, 'error');
+  }
+  setStatus('點擊 🎤 開始語音輸入');
+}
+
+async function submitData() {
+  if (!scriptUrl) {
+    showConfig();
+    return;
+  }
+  const name = document.getElementById('name').value.trim();
+  if (!name) { showToast('請輸入患者姓名', 'error'); return; }
+  if (!mainState.catId) { showToast('請選擇項目種類', 'error'); return; }
+
+  const cat = getCat(mainState.catId);
+  const category = cat.label;
+  const detail = summarizeDetail('main');
+  const color = cat.color ? document.getElementById('main-color').value.trim() : '';
+  const position = document.getElementById('main-position').value.trim();
+  const lab = document.getElementById('lab').value;
+  const note = document.getElementById('note').value.trim();
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '上傳中...';
+
+  try {
+    const id = Date.now().toString();
+    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, position, note });
+    await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    addHistory({ name, catId: mainState.catId, category, detail, lab, color, position, note, id, selections: { ...mainState } });
+    showToast('✅ 上傳成功！', 'success');
+    clearAll();
+  } catch (err) {
+    showToast('上傳失敗：' + err.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '上傳至 Google Sheet';
+}
+
+function addHistory(h) {
+  const now = new Date().toLocaleTimeString('zh-TW');
+  history.unshift({ ...h, time: now });
+  localStorage.setItem('daiyuanHistory', JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (!history.length) { el.innerHTML = '<div style="color:#a0aec0;font-size:0.85rem;">尚無紀錄</div>'; return; }
+  el.innerHTML = history.map((h, i) => `
+    <div class="history-item">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="h-name">👤 ${h.name}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-left:8px;">
+          <button onclick="openEdit(${i})" style="background:#ebf8ff;border:1px solid #bee3f8;color:#2b6cb0;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">✏️ 修改</button>
+          <button onclick="deleteHistoryItem(${i})" style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">🗑️ 刪除</button>
+        </div>
+      </div>
+      <div class="h-row">📋 項目：${h.category || '—'}</div>
+      ${h.detail ? `<div class="h-row">🔎 明細：${h.detail}</div>` : ''}
+      ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
+      ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
+      ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
+      ${h.note ? `<div class="h-row">📝 交代：${h.note}</div>` : ''}
+      <div class="h-time">${h.time}</div>
+    </div>
+  `).join('');
+}
+
+function deleteHistoryItem(i) {
+  if (!confirm('確定要從此裝置的紀錄中刪除這筆？（不會影響 Google Sheet 已上傳的資料）')) return;
+  history.splice(i, 1);
+  localStorage.setItem('daiyuanHistory', JSON.stringify(history));
+  renderHistory();
+  showToast('已從本機紀錄移除', 'success');
+}
+
+function clearAll() {
+  stopVoice();
+  const ta = document.getElementById('name');
+  ta.value = ''; ta.style.height = '';
+  document.getElementById('note').value = '';
+  document.getElementById('note').style.height = '';
+  document.getElementById('lab').value = '';
+  document.getElementById('name-suggest').innerHTML = '';
+  resetCategoryState('main');
+  const colorInput = document.getElementById('main-color');
+  if (colorInput) colorInput.value = '';
+  clearLocChips('main-position');
+  setStatus('點擊 🎤 開始語音輸入');
+}
+
+// ── 部位 chip 邏輯 ──
+const locSelections = { 'main-position': [], 'edit-position': [] };
+const locPendingQuad = { 'main-position': [], 'edit-position': [] };
+const locPendingNum = { 'main-position': '', 'edit-position': '' };
+const LOC_DIRECT = ['全口', '上顎', '下顎'];
+
+function toggleQuadrant(fieldId, quad, btn) {
+  if (LOC_DIRECT.includes(quad)) {
+    commitLoc(fieldId);
+    addLocItem(fieldId, quad);
+    return;
+  }
+  const pending = locPendingQuad[fieldId];
+  const idx = pending.indexOf(quad);
+  if (idx === -1) {
+    pending.push(quad);
+    btn.classList.add('pending');
+  } else {
+    pending.splice(idx, 1);
+    btn.classList.remove('pending');
+  }
+  updateLocPreview(fieldId);
+}
+
+function appendTooth(fieldId, ch) {
+  locPendingNum[fieldId] += ch;
+  updateLocPreview(fieldId);
+}
+
+function commitLoc(fieldId) {
+  const quads = locPendingQuad[fieldId];
+  const num = locPendingNum[fieldId];
+  if (quads.length === 0 && num === '') return;
+  if (quads.length === 0) {
+    addLocItem(fieldId, num);
+  } else if (num === '') {
+    quads.forEach(q => addLocItem(fieldId, q));
+  } else {
+    quads.forEach(q => addLocItem(fieldId, q + num));
+  }
+  locPendingNum[fieldId] = '';
+  clearPendingQuad(fieldId);
+  updateLocPreview(fieldId);
+}
+
+function updateLocPreview(fieldId) {
+  const quads = locPendingQuad[fieldId];
+  const num = locPendingNum[fieldId];
+  const el = document.getElementById(fieldId + '-preview');
+  const btn = document.getElementById('loc-confirm-' + fieldId);
+  const hasPending = quads.length > 0 || num !== '';
+  if (btn) btn.style.display = hasPending ? 'inline-flex' : 'none';
+  if (!el) return;
+  if (!hasPending) { el.textContent = ''; return; }
+  const preview = quads.length > 0 ? quads.map(q => q + num).join('、') : num;
+  el.textContent = '▶ ' + preview;
+}
+
+function addLocItem(fieldId, value) {
+  const sel = locSelections[fieldId];
+  if (!sel.includes(value)) sel.push(value);
+  updateLocDisplay(fieldId);
+}
+
+function removeLocItem(fieldId, value) {
+  const sel = locSelections[fieldId];
+  const idx = sel.indexOf(value);
+  if (idx !== -1) sel.splice(idx, 1);
+  updateLocDisplay(fieldId);
+}
+
+function clearPendingQuad(fieldId) {
+  locPendingQuad[fieldId] = [];
+  document.querySelectorAll(`[data-loc-quad="${fieldId}"]`).forEach(b => b.classList.remove('pending'));
+}
+
+function updateLocDisplay(fieldId) {
+  const sel = locSelections[fieldId];
+  document.getElementById(fieldId).value = sel.join(' ');
+  const el = document.getElementById(fieldId + '-result');
+  if (!el) return;
+  if (sel.length === 0) { el.innerHTML = '<span style="color:#a0aec0">尚未選擇</span>'; return; }
+  el.innerHTML = sel.map(v =>
+    `<span class="loc-tag">${v}<button class="loc-tag-del" onclick="removeLocItem('${fieldId}','${v}')">[刪]</button></span>`
+  ).join('');
+}
+
+function clearLocChips(fieldId) {
+  locSelections[fieldId] = [];
+  locPendingNum[fieldId] = '';
+  clearPendingQuad(fieldId);
+  updateLocDisplay(fieldId);
+  updateLocPreview(fieldId);
+}
+
+function setLocChips(fieldId, valueStr) {
+  clearLocChips(fieldId);
+  if (!valueStr) return;
+  valueStr.split(' ').filter(Boolean).forEach(v => addLocItem(fieldId, v));
+}
+
+// ── 提示音（用 Audio 元素，iOS 相容性最佳）──
+const _beepSrc = 'data:audio/wav;base64,UklGRtAUAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YawUAAAAAA4T6yR5NL9A+EihTH5Lo0VsO34ttxwlCvH2TeRl00fF1bq3tE+zs7asvrzKINrj6+j+/hH1I6szJ0CfSIxMr0sXRhw8Xi66HToLB/hT5UrU/cVRu/G0QrNhthq+88kt2dXq0P3tEPwi2zKLP0JIdEzdS4hGyTw8L7weTwwe+VrmMtW2xtC7LrU6sxO2jL0uyT3Yyem4/NwPAiIIMuw+4UdXTAZM9EZyPRgwvB9jDTX6Y+cb1nLHU7xvtTWzybUCvWvITte96KH7yQ4GITIxSj59RzdMLExeRxk+8TCKIHcOTftt6AfXMcjZvLS1NbODtXq8q8di1rPnifq2DQggWjClPRRHEkxOTMNHvD7IMbchiQ9k/Hjp9dfzyGK9/bU4s0G197vuxnfVquZy+aIMCR9/L/w8qUbqS2tMJUhcP5wysSKbEHz9herl2LjJ771Jtj+zA7V3uzTGj9Si5Vv4jQsIHqEuUDw5Rr1LhUyDSPg/bTOqI6wRlP6S69fZf8qAvpq2S7PItPq6fcWp04zkRPd4CgUdwi2hO8ZFjUubTN5IkkA8NKEkvBKs/6Hsy9pJyxS/7rZas5K0gbrJxMbSl+Mu9mIJARzfLO86T0VZS61MNEkoQQg1lyXME8QAsO3B2xfMq79Gt22zX7QMuhnE5dGT4hn1TAj8GvsrOjrVRCFLukyHSbpB0TWKJtoU3AHB7rnc5sxGwKK3hbMwtJq5a8MG0ZHhBPQ2B/UZFCuCOVdE5UrETNZJSUKXNnsn5xX0AtLvs925zeTAAbigswa0LLnAwirQkeDw8h4G7BgrKsc41UOlSspMIUrVQls3aijzFgsE5PCu3o7OhcFluL+z37PBuBnCUM+S39zxBwXjF0ApCThQQ2FKzExoSl1DDDhYKf0XIwX38avfZc8pwsy44rO8s1u4dcF4zpXeyfDvA9gWUyhIN8dCGkrKTKxK4kPaOEMqBxk6BgvzquA/0NHCN7kKtJ2z+LfUwKTNmt2374CxFCYkDFG4XSOG0VRnuVx9Zf2ZTohChv44nwdFKMSDWGNE/D2MXmrBbMTmDvTpTiDaRLsUjxBZfCH05CKaIHcOTftt6AfXMcjZvLS1NbODtXq8q8di1rPnifq2DQ==';
+let _beepAudio = null;
+
+function _getBeep() {
+  if (!_beepAudio) {
+    _beepAudio = new Audio(_beepSrc);
+    _beepAudio.volume = 0.8;
+  }
+  return _beepAudio;
+}
+
+function _unlockBeep() {
+  const a = _getBeep();
+  a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+}
+document.addEventListener('touchstart', _unlockBeep, { once: true });
+document.addEventListener('mousedown', _unlockBeep, { once: true });
+
+function playBell() {
+  try {
+    const a = _getBeep();
+    a.currentTime = 0;
+    a.play().catch(() => {});
+  } catch(e) {}
+}
+
+let editIndex = null;
+
+function openEdit(i) {
+  editIndex = i;
+  const h = history[i];
+  document.getElementById('edit-name').value = h.name || '';
+  document.getElementById('edit-name-suggest').innerHTML = '';
+
+  if (h.selections && h.selections.catId) {
+    editState.catId = h.selections.catId;
+    editState.material = h.selections.material || null;
+    editState.type = h.selections.type || null;
+    editState.arch = h.selections.arch || null;
+    editState.redo = !!h.selections.redo;
+    editState.clear = !!h.selections.clear;
+  } else {
+    const matched = CATEGORIES.find(c => c.label === h.category);
+    editState.catId = matched ? matched.id : null;
+    editState.material = null; editState.type = null; editState.arch = null; editState.redo = false; editState.clear = false;
+  }
+  renderCatChips('edit');
+  renderDetailFields('edit');
+  const colorInput = document.getElementById('edit-color');
+  if (colorInput) colorInput.value = h.color || '';
+
+  setLocChips('edit-position', h.position || '');
+  document.getElementById('edit-lab').value = h.lab || '';
+  document.getElementById('edit-note').value = h.note || '';
+
+  const modal = document.getElementById('editModal');
+  modal.style.display = 'flex';
+}
+
+function closeEdit() {
+  stopVoice();
+  document.getElementById('editModal').style.display = 'none';
+  editIndex = null;
+}
+
+async function saveEdit() {
+  if (editIndex === null) return;
+  const h = history[editIndex];
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { showToast('請輸入患者姓名', 'error'); return; }
+  if (!editState.catId) { showToast('請選擇項目種類', 'error'); return; }
+
+  const cat = getCat(editState.catId);
+  const category = cat.label;
+  const detail = summarizeDetail('edit');
+  const color = cat.color ? document.getElementById('edit-color').value.trim() : '';
+  const position = document.getElementById('edit-position').value;
+  const lab = document.getElementById('edit-lab').value;
+  const note = document.getElementById('edit-note').value.trim();
+
+  const saveBtn = document.querySelector('#editModal button');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '儲存中...';
+
+  try {
+    if (h.id && scriptUrl) {
+      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, position, note });
+      await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    }
+    history[editIndex] = { ...h, name, category, detail, lab, color, position, note, selections: { ...editState } };
+    localStorage.setItem('daiyuanHistory', JSON.stringify(history));
+    renderHistory();
+    closeEdit();
+    showToast('✅ 修改已儲存', 'success');
+  } catch (err) {
+    showToast('❌ ' + err.message, 'error');
+  }
+
+  saveBtn.disabled = false;
+  saveBtn.textContent = '💾 儲存修改';
+}
+
+function clearHistory() {
+  if (!confirm('確定要清除今日所有紀錄？')) return;
+  history = [];
+  localStorage.setItem('daiyuanHistory', JSON.stringify(history));
+  renderHistory();
+  showToast('今日紀錄已清除');
+}
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+function showConfig() {
+  const modal = document.getElementById('configModal');
+  modal.style.display = 'flex';
+  document.getElementById('scriptUrl').value = scriptUrl;
+}
+
+function closeConfig() {
+  document.getElementById('configModal').style.display = 'none';
+}
+
+function saveConfig() {
+  const url = document.getElementById('scriptUrl').value.trim();
+  if (!url.startsWith('https://script.google.com')) {
+    alert('請貼上正確的 Apps Script 網址');
+    return;
+  }
+  scriptUrl = url;
+  localStorage.setItem('daiyuanScriptUrl', url);
+  document.getElementById('configBanner').style.display = 'none';
+  closeConfig();
+  showToast('設定已儲存', 'success');
+  loadServerNames();
+  loadSharedHistory();
+}
+
+function showGuide() {
+  const guide = document.getElementById('guideArea');
+  guide.style.display = guide.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('scriptCode').textContent = APPS_SCRIPT_CODE;
+}
+
+function copyScript() {
+  navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(() => {
+    showToast('程式碼已複製', 'success');
+  });
+}
+
+// ── 交代事項快速詞 ──
+const QUICK_NOTES = [
+  { group: '義齒器具', terms: ['活動帶來', '上顎活動帶來', '下顎活動帶來', '上顎活動送回', '下顎活動送回', '帶維持器過來'] },
+  { group: '費用', terms: ['不收', '退費', '訂金', '自費'] },
+  { group: '特殊注意', terms: ['要簽名', '已裝牙', '重新印模', '材質已跟病人確認'] },
+  { group: '約診', terms: ['暫不約', '要趕件', '照原約'] },
+];
+
+function appendQuickTerm(fieldId, term) {
+  const ta = document.getElementById(fieldId);
+  const cur = ta.value;
+  ta.value = cur ? cur + ' ' + term : term;
+  autoResize(ta);
+  ta.focus();
+}
+
+function renderQuickChips(containerId, fieldId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = QUICK_NOTES.map(g => `
+    <div class="qc-divider">${g.group}</div>
+    <div class="qc-group">
+      ${g.terms.map(t => `<button class="qc-btn-note" onclick="appendQuickTerm('${fieldId}','${t}')">${t}</button>`).join('')}
+    </div>
+  `).join('');
+}
+
+document.querySelectorAll('textarea').forEach(ta => {
+  ta.addEventListener('input', () => autoResize(ta));
+});
+
+init();
+</script>
+</body>
+</html>
