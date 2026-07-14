@@ -287,13 +287,6 @@
     <button class="loc-chip" onclick="appendTooth('main-position','8')">8</button>
     <button class="loc-chip" onclick="appendTooth('main-position','9')">9</button>
     <button class="loc-chip" onclick="appendTooth('main-position','X')">X</button>
-  </div>
-  <div class="loc-group">
-    <button class="loc-chip" onclick="appendTooth('main-position','A')">A</button>
-    <button class="loc-chip" onclick="appendTooth('main-position','B')">B</button>
-    <button class="loc-chip" onclick="appendTooth('main-position','C')">C</button>
-    <button class="loc-chip" onclick="appendTooth('main-position','D')">D</button>
-    <button class="loc-chip" onclick="appendTooth('main-position','E')">E</button>
     <button class="loc-chip loc-chip-confirm" onclick="commitLoc('main-position')" id="loc-confirm-main-position" style="display:none">加入</button>
   </div>
   <div class="loc-preview" id="main-position-preview"></div>
@@ -311,16 +304,6 @@
     <option value="京典">京典</option>
     <option value="美加">美加</option>
   </select>
-</div>
-
-<!-- 交代事項 -->
-<div class="card">
-  <div class="field-label">交代事項</div>
-  <div class="field-row">
-    <textarea id="note" rows="2" placeholder="點下方快速詞 或 按🎤語音輸入"></textarea>
-    <button class="mic-btn" id="mic-note" onclick="toggleVoice('note')" title="語音輸入">🎤</button>
-  </div>
-  <div class="quick-chips" id="qc-note"></div>
 </div>
 
 <div class="status-bar" id="statusBar">點擊 🎤 開始語音輸入</div>
@@ -403,13 +386,6 @@
         <button class="loc-chip" onclick="appendTooth('edit-position','8')">8</button>
         <button class="loc-chip" onclick="appendTooth('edit-position','9')">9</button>
         <button class="loc-chip" onclick="appendTooth('edit-position','X')">X</button>
-      </div>
-      <div class="loc-group">
-        <button class="loc-chip" onclick="appendTooth('edit-position','A')">A</button>
-        <button class="loc-chip" onclick="appendTooth('edit-position','B')">B</button>
-        <button class="loc-chip" onclick="appendTooth('edit-position','C')">C</button>
-        <button class="loc-chip" onclick="appendTooth('edit-position','D')">D</button>
-        <button class="loc-chip" onclick="appendTooth('edit-position','E')">E</button>
         <button class="loc-chip loc-chip-confirm" onclick="commitLoc('edit-position')" id="loc-confirm-edit-position" style="display:none">加入</button>
       </div>
       <div class="loc-preview" id="edit-position-preview"></div>
@@ -426,15 +402,6 @@
         <option value="京典">京典</option>
         <option value="美加">美加</option>
       </select>
-    </div>
-
-    <div style="margin-bottom:16px;">
-      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">交代事項</div>
-      <div class="field-row">
-        <textarea id="edit-note" rows="2" style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:1rem;font-family:inherit;resize:none;"></textarea>
-        <button class="mic-btn" id="mic-edit-note" onclick="toggleVoice('edit-note')" style="margin-top:0">🎤</button>
-      </div>
-      <div class="quick-chips" id="qc-edit-note"></div>
     </div>
 
     <div style="display:flex;gap:10px;">
@@ -472,7 +439,7 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
   const action = (e.parameter.action || 'insert');
 
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','部位','交代事項','ID']);
+    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','部位','ID']);
   }
 
   if (action === 'getAll') {
@@ -480,8 +447,8 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
     const rows = [];
     for (let i = 1; i < data.length; i++) {
       const r = data[i];
-      if (!r[8]) continue;
-      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], position:r[6], note:r[7], id:String(r[8]) });
+      if (!r[7]) continue;
+      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], position:r[6], id:String(r[7]) });
     }
     rows.reverse();
     return ContentService.createTextOutput(JSON.stringify({ result:'success', rows }))
@@ -498,8 +465,8 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
   if (action === 'update') {
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][8]) === String(e.parameter.id)) {
-        sheet.getRange(i + 1, 1, 1, 9).setValues([[
+      if (String(data[i][7]) === String(e.parameter.id)) {
+        sheet.getRange(i + 1, 1, 1, 8).setValues([[
           new Date().toLocaleString('zh-TW'),
           e.parameter.name || '',
           e.parameter.category || '',
@@ -507,7 +474,6 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
           e.parameter.lab || '',
           e.parameter.color || '',
           e.parameter.position || '',
-          e.parameter.note || '',
           e.parameter.id
         ]]);
         break;
@@ -525,7 +491,6 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
     e.parameter.lab || '',
     e.parameter.color || '',
     e.parameter.position || '',
-    e.parameter.note || '',
     e.parameter.id || ''
   ]);
 
@@ -755,8 +720,6 @@ function init() {
   renderDetailFields('main');
   renderCatChips('edit');
   renderDetailFields('edit');
-  renderQuickChips('qc-note', 'note');
-  renderQuickChips('qc-edit-note', 'edit-note');
   document.getElementById('name').addEventListener('input', () => updateNameSuggestions('name'));
   document.getElementById('edit-name').addEventListener('input', () => updateNameSuggestions('edit-name'));
 }
@@ -904,10 +867,10 @@ async function testConnection() {
   setStatus('🔗 測試連線中...', true);
   try {
     const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', position:'', note:'可刪除' });
+    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', position:'' });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     showToast('✅ 連線測試成功！請查看 Google Sheet', 'success');
-    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', position:'', note:'可刪除', id });
+    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', position:'', id });
   } catch (err) {
     showToast('❌ 連線失敗：' + err.message, 'error');
   }
@@ -929,7 +892,6 @@ async function submitData() {
   const color = cat.color ? document.getElementById('main-color').value.trim() : '';
   const position = document.getElementById('main-position').value.trim();
   const lab = document.getElementById('lab').value;
-  const note = document.getElementById('note').value.trim();
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -937,9 +899,9 @@ async function submitData() {
 
   try {
     const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, position, note });
+    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, position });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
-    addHistory({ name, catId: mainState.catId, category, detail, lab, color, position, note, id, selections: { ...mainState } });
+    addHistory({ name, catId: mainState.catId, category, detail, lab, color, position, id, selections: { ...mainState } });
     showToast('✅ 上傳成功！', 'success');
     clearAll();
   } catch (err) {
@@ -974,7 +936,6 @@ function renderHistory() {
       ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
       ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
       ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
-      ${h.note ? `<div class="h-row">📝 交代：${h.note}</div>` : ''}
       <div class="h-time">${h.time}</div>
     </div>
   `).join('');
@@ -992,8 +953,6 @@ function clearAll() {
   stopVoice();
   const ta = document.getElementById('name');
   ta.value = ''; ta.style.height = '';
-  document.getElementById('note').value = '';
-  document.getElementById('note').style.height = '';
   document.getElementById('lab').value = '';
   document.getElementById('name-suggest').innerHTML = '';
   resetCategoryState('main');
@@ -1158,7 +1117,6 @@ function openEdit(i) {
 
   setLocChips('edit-position', h.position || '');
   document.getElementById('edit-lab').value = h.lab || '';
-  document.getElementById('edit-note').value = h.note || '';
 
   const modal = document.getElementById('editModal');
   modal.style.display = 'flex';
@@ -1183,7 +1141,6 @@ async function saveEdit() {
   const color = cat.color ? document.getElementById('edit-color').value.trim() : '';
   const position = document.getElementById('edit-position').value;
   const lab = document.getElementById('edit-lab').value;
-  const note = document.getElementById('edit-note').value.trim();
 
   const saveBtn = document.querySelector('#editModal button');
   saveBtn.disabled = true;
@@ -1191,10 +1148,10 @@ async function saveEdit() {
 
   try {
     if (h.id && scriptUrl) {
-      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, position, note });
+      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, position });
       await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     }
-    history[editIndex] = { ...h, name, category, detail, lab, color, position, note, selections: { ...editState } };
+    history[editIndex] = { ...h, name, category, detail, lab, color, position, selections: { ...editState } };
     localStorage.setItem('daiyuanHistory', JSON.stringify(history));
     renderHistory();
     closeEdit();
@@ -1257,33 +1214,6 @@ function copyScript() {
   navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(() => {
     showToast('程式碼已複製', 'success');
   });
-}
-
-// ── 交代事項快速詞 ──
-const QUICK_NOTES = [
-  { group: '義齒器具', terms: ['活動帶來', '上顎活動帶來', '下顎活動帶來', '上顎活動送回', '下顎活動送回', '帶維持器過來'] },
-  { group: '費用', terms: ['不收', '退費', '訂金', '自費'] },
-  { group: '特殊注意', terms: ['要簽名', '已裝牙', '重新印模', '材質已跟病人確認'] },
-  { group: '約診', terms: ['暫不約', '要趕件', '照原約'] },
-];
-
-function appendQuickTerm(fieldId, term) {
-  const ta = document.getElementById(fieldId);
-  const cur = ta.value;
-  ta.value = cur ? cur + ' ' + term : term;
-  autoResize(ta);
-  ta.focus();
-}
-
-function renderQuickChips(containerId, fieldId) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  el.innerHTML = QUICK_NOTES.map(g => `
-    <div class="qc-divider">${g.group}</div>
-    <div class="qc-group">
-      ${g.terms.map(t => `<button class="qc-btn-note" onclick="appendQuickTerm('${fieldId}','${t}')">${t}</button>`).join('')}
-    </div>
-  `).join('');
 }
 
 document.querySelectorAll('textarea').forEach(ta => {
