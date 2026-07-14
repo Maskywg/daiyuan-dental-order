@@ -525,7 +525,8 @@ const CATEGORIES = [
   { id:'softliner',  label:'軟墊',       icon:'🧽', arch:['上顎','下顎','全口'], redo:true, clear:true },
   { id:'functional', label:'功能性矯正器', icon:'🦴', arch:['上顎','下顎','全口'] },
   { id:'mixed',      label:'混合齒列矯正', icon:'🪥', arch:['上顎','下顎','全口'] },
-  { id:'fluoride',   label:'塗氟矯正',   icon:'💧', type:['塗氟','矯正拔牙'] },
+  { id:'fluoride',   label:'塗氟',       icon:'💧' },
+  { id:'ortho',      label:'矯正',       icon:'🧩', type:['拔牙矯正','非拔牙矯正'] },
   { id:'implant',    label:'植牙',       icon:'⚙️', arch:['上顎','下顎','全口'] },
   { id:'bonegraft',  label:'骨再生',     icon:'🩹', arch:['上顎','下顎','全口'] },
   { id:'crownlength',label:'牙冠增長術', icon:'✂️', arch:['上顎','下顎','全口'] },
@@ -592,7 +593,7 @@ function renderDetailFields(prefix) {
     if (cat.clear) html += `<button class="loc-chip${state.clear ? ' flag-on' : ''}" onclick="toggleDetailFlag('${prefix}','clear')">🔍 透明</button>`;
     html += `</div>`;
   }
-  groupsEl.innerHTML = html;
+  groupsEl.innerHTML = html || '<div class="detail-hint">此項目無需額外明細，直接填部位／技工所／金額即可</div>';
   colorRow.style.display = cat.color ? 'block' : 'none';
 }
 
