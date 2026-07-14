@@ -526,6 +526,9 @@ const CATEGORIES = [
   { id:'functional', label:'功能性矯正器', icon:'🦴', arch:['上顎','下顎','全口'] },
   { id:'mixed',      label:'混合齒列矯正', icon:'🪥', arch:['上顎','下顎','全口'] },
   { id:'fluoride',   label:'塗氟矯正',   icon:'💧', type:['塗氟','矯正拔牙'] },
+  { id:'implant',    label:'植牙',       icon:'⚙️', arch:['上顎','下顎','全口'] },
+  { id:'bonegraft',  label:'骨再生',     icon:'🩹', arch:['上顎','下顎','全口'] },
+  { id:'crownlength',label:'牙冠增長術', icon:'✂️', arch:['上顎','下顎','全口'] },
 ];
 
 const mainState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false };
@@ -612,7 +615,7 @@ function resetCategoryState(prefix) {
 }
 
 // ── 金額快速鍵（僅為常見整數金額佔位，請依診所實際收費調整）──
-const AMOUNT_PRESETS = [500, 1000, 1500, 2000, 3000, 5000, 8000, 10000];
+const AMOUNT_PRESETS = [500, 1000, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 35000];
 
 function pickAmount(prefix, amt) {
   document.getElementById(prefix + '-amount').value = amt;
