@@ -639,19 +639,30 @@ let scriptUrl = DEFAULT_SCRIPT_URL;
 localStorage.setItem('daiyuanScriptUrl', DEFAULT_SCRIPT_URL);
 let history = JSON.parse(localStorage.getItem('daiyuanHistory') || '[]');
 
-// ── 歷史患者姓名清單（語音/打字辨識比對建議用）── 全新診所，僅由 Google Sheet 累積，不預帶其他診所資料
+// 語音醫囑系統的 Apps Script 網址，姓名比對清單與其共用（同一診所的病患名單）
+const VOICE_ORDER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz9QrtrBAmW72_NEEUpkcAh0YP1DFCBaSL5tKnRwjMBfxzAo1RX7Gt4m73FFP-bZ_Gm/exec';
+
+// ── 歷史患者姓名清單（語音/打字辨識比對建議用）── 合併本系統與語音醫囑系統的 Google Sheet 姓名
 let serverNamePool = [];
 const NAME_BLOCKLIST = new Set(['test', '測試', '試驗']);
 
-async function loadServerNames() {
-  if (!scriptUrl) return;
+async function fetchNamesFrom(url) {
+  if (!url) return [];
   try {
-    const res = await fetch(scriptUrl + '?action=getNames&_=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch(url + '?action=getNames&_=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
-    if (data.result === 'success' && Array.isArray(data.names)) {
-      serverNamePool = data.names.filter(n => !NAME_BLOCKLIST.has(n));
-    }
+    if (data.result === 'success' && Array.isArray(data.names)) return data.names;
   } catch (e) {}
+  return [];
+}
+
+async function loadServerNames() {
+  const [ownNames, voiceOrderNames] = await Promise.all([
+    fetchNamesFrom(scriptUrl),
+    fetchNamesFrom(VOICE_ORDER_SCRIPT_URL),
+  ]);
+  const merged = [...new Set([...ownNames, ...voiceOrderNames])];
+  serverNamePool = merged.filter(n => !NAME_BLOCKLIST.has(n));
 }
 
 async function manualRefreshNames() {
