@@ -629,8 +629,10 @@ function renderAmountChips(prefix) {
 let recognition = null;
 let currentField = null;
 let isListening = false;
-const DEFAULT_SCRIPT_URL = '';
-let scriptUrl = localStorage.getItem('daiyuanScriptUrl') || DEFAULT_SCRIPT_URL;
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKbg_QQzxi99Pil8vVAckjufIBvjFD3RA2-HdEim5GZlbHrNSWH2JH-pkqg2N86IU_/exec';
+// 永遠以程式碼內建網址為主，避免舊裝置用到過期的 localStorage
+let scriptUrl = DEFAULT_SCRIPT_URL;
+localStorage.setItem('daiyuanScriptUrl', DEFAULT_SCRIPT_URL);
 let history = JSON.parse(localStorage.getItem('daiyuanHistory') || '[]');
 
 // ── 歷史患者姓名清單（語音/打字辨識比對建議用）── 全新診所，僅由 Google Sheet 累積，不預帶其他診所資料
