@@ -306,6 +306,13 @@
   </select>
 </div>
 
+<!-- 金額 -->
+<div class="card">
+  <div class="field-label">金額</div>
+  <div class="field-row"><input id="main-amount" type="number" inputmode="numeric" placeholder="輸入金額"></div>
+  <div class="loc-group" id="main-amount-chips" style="margin-top:8px;"></div>
+</div>
+
 <div class="status-bar" id="statusBar">點擊 🎤 開始語音輸入</div>
 
 <button class="submit-btn" onclick="playBell(); submitData()" id="submitBtn">上傳至 Google Sheet</button>
@@ -404,6 +411,12 @@
       </select>
     </div>
 
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">金額</div>
+      <div class="field-row"><input id="edit-amount" type="number" inputmode="numeric" placeholder="輸入金額"></div>
+      <div class="loc-group" id="edit-amount-chips" style="margin-top:8px;"></div>
+    </div>
+
     <div style="display:flex;gap:10px;">
       <button onclick="playBell(); saveEdit()" style="flex:1;padding:14px;background:#2b6cb0;color:white;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">💾 儲存修改</button>
       <button onclick="closeEdit()" style="flex:1;padding:14px;background:#e2e8f0;color:#4a5568;border:none;border-radius:12px;font-size:1rem;cursor:pointer;">取消</button>
@@ -439,7 +452,7 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
   const action = (e.parameter.action || 'insert');
 
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','部位','ID']);
+    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','金額','部位','ID']);
   }
 
   if (action === 'getAll') {
@@ -447,8 +460,8 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
     const rows = [];
     for (let i = 1; i < data.length; i++) {
       const r = data[i];
-      if (!r[7]) continue;
-      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], position:r[6], id:String(r[7]) });
+      if (!r[8]) continue;
+      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], amount:r[6], position:r[7], id:String(r[8]) });
     }
     rows.reverse();
     return ContentService.createTextOutput(JSON.stringify({ result:'success', rows }))
@@ -465,14 +478,15 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
   if (action === 'update') {
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][7]) === String(e.parameter.id)) {
-        sheet.getRange(i + 1, 1, 1, 8).setValues([[
+      if (String(data[i][8]) === String(e.parameter.id)) {
+        sheet.getRange(i + 1, 1, 1, 9).setValues([[
           new Date().toLocaleString('zh-TW'),
           e.parameter.name || '',
           e.parameter.category || '',
           e.parameter.detail || '',
           e.parameter.lab || '',
           e.parameter.color || '',
+          e.parameter.amount || '',
           e.parameter.position || '',
           e.parameter.id
         ]]);
@@ -490,6 +504,7 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
     e.parameter.detail || '',
     e.parameter.lab || '',
     e.parameter.color || '',
+    e.parameter.amount || '',
     e.parameter.position || '',
     e.parameter.id || ''
   ]);
@@ -594,6 +609,21 @@ function resetCategoryState(prefix) {
   state.catId = null; state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false;
   renderCatChips(prefix);
   renderDetailFields(prefix);
+}
+
+// ── 金額快速鍵（僅為常見整數金額佔位，請依診所實際收費調整）──
+const AMOUNT_PRESETS = [500, 1000, 1500, 2000, 3000, 5000, 8000, 10000];
+
+function pickAmount(prefix, amt) {
+  document.getElementById(prefix + '-amount').value = amt;
+}
+
+function renderAmountChips(prefix) {
+  const el = document.getElementById(prefix + '-amount-chips');
+  if (!el) return;
+  el.innerHTML = AMOUNT_PRESETS.map(a =>
+    `<button class="loc-chip" onclick="pickAmount('${prefix}',${a})">${a.toLocaleString()}</button>`
+  ).join('');
 }
 
 let recognition = null;
@@ -720,6 +750,8 @@ function init() {
   renderDetailFields('main');
   renderCatChips('edit');
   renderDetailFields('edit');
+  renderAmountChips('main');
+  renderAmountChips('edit');
   document.getElementById('name').addEventListener('input', () => updateNameSuggestions('name'));
   document.getElementById('edit-name').addEventListener('input', () => updateNameSuggestions('edit-name'));
 }
@@ -867,10 +899,10 @@ async function testConnection() {
   setStatus('🔗 測試連線中...', true);
   try {
     const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', position:'' });
+    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', amount:'', position:'' });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     showToast('✅ 連線測試成功！請查看 Google Sheet', 'success');
-    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', position:'', id });
+    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', amount:'', position:'', id });
   } catch (err) {
     showToast('❌ 連線失敗：' + err.message, 'error');
   }
@@ -890,6 +922,7 @@ async function submitData() {
   const category = cat.label;
   const detail = summarizeDetail('main');
   const color = cat.color ? document.getElementById('main-color').value.trim() : '';
+  const amount = document.getElementById('main-amount').value.trim();
   const position = document.getElementById('main-position').value.trim();
   const lab = document.getElementById('lab').value;
 
@@ -899,9 +932,9 @@ async function submitData() {
 
   try {
     const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, position });
+    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, amount, position });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
-    addHistory({ name, catId: mainState.catId, category, detail, lab, color, position, id, selections: { ...mainState } });
+    addHistory({ name, catId: mainState.catId, category, detail, lab, color, amount, position, id, selections: { ...mainState } });
     showToast('✅ 上傳成功！', 'success');
     clearAll();
   } catch (err) {
@@ -934,6 +967,7 @@ function renderHistory() {
       <div class="h-row">📋 項目：${h.category || '—'}</div>
       ${h.detail ? `<div class="h-row">🔎 明細：${h.detail}</div>` : ''}
       ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
+      ${h.amount ? `<div class="h-row">💰 金額：${Number(h.amount).toLocaleString()}</div>` : ''}
       ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
       ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
       <div class="h-time">${h.time}</div>
@@ -958,6 +992,7 @@ function clearAll() {
   resetCategoryState('main');
   const colorInput = document.getElementById('main-color');
   if (colorInput) colorInput.value = '';
+  document.getElementById('main-amount').value = '';
   clearLocChips('main-position');
   setStatus('點擊 🎤 開始語音輸入');
 }
@@ -1114,6 +1149,7 @@ function openEdit(i) {
   renderDetailFields('edit');
   const colorInput = document.getElementById('edit-color');
   if (colorInput) colorInput.value = h.color || '';
+  document.getElementById('edit-amount').value = h.amount || '';
 
   setLocChips('edit-position', h.position || '');
   document.getElementById('edit-lab').value = h.lab || '';
@@ -1139,6 +1175,7 @@ async function saveEdit() {
   const category = cat.label;
   const detail = summarizeDetail('edit');
   const color = cat.color ? document.getElementById('edit-color').value.trim() : '';
+  const amount = document.getElementById('edit-amount').value.trim();
   const position = document.getElementById('edit-position').value;
   const lab = document.getElementById('edit-lab').value;
 
@@ -1148,10 +1185,10 @@ async function saveEdit() {
 
   try {
     if (h.id && scriptUrl) {
-      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, position });
+      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, amount, position });
       await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     }
-    history[editIndex] = { ...h, name, category, detail, lab, color, position, selections: { ...editState } };
+    history[editIndex] = { ...h, name, category, detail, lab, color, amount, position, selections: { ...editState } };
     localStorage.setItem('daiyuanHistory', JSON.stringify(history));
     renderHistory();
     closeEdit();
