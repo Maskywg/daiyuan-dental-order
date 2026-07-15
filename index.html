@@ -980,12 +980,11 @@ async function submitData() {
   }
   const name = document.getElementById('name').value.trim();
   if (!name) { showToast('請輸入患者姓名', 'error'); return; }
-  if (!mainState.catId) { showToast('請選擇項目種類', 'error'); return; }
 
   const cat = getCat(mainState.catId);
-  const category = cat.label;
-  const detail = summarizeDetail('main');
-  const color = cat.color ? document.getElementById('main-color').value.trim() : '';
+  const category = cat ? cat.label : '';
+  const detail = cat ? summarizeDetail('main') : '';
+  const color = cat && cat.color ? document.getElementById('main-color').value.trim() : '';
   const amount = document.getElementById('main-amount').value.trim();
   const position = document.getElementById('main-position').value.trim();
   const lab = document.getElementById('lab').value;
@@ -1238,12 +1237,11 @@ async function saveEdit() {
   const h = history[editIndex];
   const name = document.getElementById('edit-name').value.trim();
   if (!name) { showToast('請輸入患者姓名', 'error'); return; }
-  if (!editState.catId) { showToast('請選擇項目種類', 'error'); return; }
 
   const cat = getCat(editState.catId);
-  const category = cat.label;
-  const detail = summarizeDetail('edit');
-  const color = cat.color ? document.getElementById('edit-color').value.trim() : '';
+  const category = cat ? cat.label : '';
+  const detail = cat ? summarizeDetail('edit') : '';
+  const color = cat && cat.color ? document.getElementById('edit-color').value.trim() : '';
   const amount = document.getElementById('edit-amount').value.trim();
   const position = document.getElementById('edit-position').value;
   const lab = document.getElementById('edit-lab').value;
