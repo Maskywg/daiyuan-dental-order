@@ -313,6 +313,12 @@
   <div class="loc-group" id="main-amount-chips" style="margin-top:8px;"></div>
 </div>
 
+<!-- 確認資料 -->
+<div class="card" id="main-summary-card" style="border:1.5px solid #99f6e4;">
+  <div class="field-label">📋 確認資料（上傳前請檢查）</div>
+  <div id="main-summary"><span style="color:#a0aec0;font-size:0.85rem;">尚未填寫</span></div>
+</div>
+
 <div class="status-bar" id="statusBar">點擊 🎤 開始語音輸入</div>
 
 <button class="submit-btn" onclick="playBell(); submitData()" id="submitBtn">上傳至 Google Sheet</button>
@@ -598,6 +604,7 @@ function renderDetailFields(prefix) {
   }
   groupsEl.innerHTML = html || '<div class="detail-hint">此項目無需額外明細，直接填部位／技工所／金額即可</div>';
   colorRow.style.display = cat.color ? 'block' : 'none';
+  if (prefix === 'main') renderMainSummary();
 }
 
 function summarizeDetail(prefix) {
@@ -623,6 +630,7 @@ const AMOUNT_PRESETS = [500, 1000, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 3
 
 function pickAmount(prefix, amt) {
   document.getElementById(prefix + '-amount').value = amt;
+  if (prefix === 'main') renderMainSummary();
 }
 
 function renderAmountChips(prefix) {
@@ -723,6 +731,7 @@ function pickSuggestedName(fieldId, name) {
   ta.value = name;
   document.getElementById(fieldId + '-suggest').innerHTML = '';
   ta.focus();
+  if (fieldId === 'name') renderMainSummary();
 }
 
 function clearFieldWithConfirm(fieldId) {
@@ -733,6 +742,7 @@ function clearFieldWithConfirm(fieldId) {
   const suggestEl = document.getElementById(fieldId + '-suggest');
   if (suggestEl) suggestEl.innerHTML = '';
   ta.focus();
+  if (fieldId === 'name') renderMainSummary();
 }
 
 async function loadSharedHistory() {
@@ -772,8 +782,41 @@ function init() {
   renderDetailFields('edit');
   renderAmountChips('main');
   renderAmountChips('edit');
-  document.getElementById('name').addEventListener('input', () => updateNameSuggestions('name'));
+  document.getElementById('name').addEventListener('input', () => { updateNameSuggestions('name'); renderMainSummary(); });
   document.getElementById('edit-name').addEventListener('input', () => updateNameSuggestions('edit-name'));
+  document.getElementById('main-color').addEventListener('input', renderMainSummary);
+  document.getElementById('main-amount').addEventListener('input', renderMainSummary);
+  document.getElementById('lab').addEventListener('change', renderMainSummary);
+  renderMainSummary();
+}
+
+function renderMainSummary() {
+  const el = document.getElementById('main-summary');
+  if (!el) return;
+  const name = document.getElementById('name').value.trim();
+  const cat = getCat(mainState.catId);
+  const category = cat ? cat.label : '';
+  const detail = cat ? summarizeDetail('main') : '';
+  const colorEl = document.getElementById('main-color');
+  const color = cat && cat.color && colorEl ? colorEl.value.trim() : '';
+  const amount = document.getElementById('main-amount').value.trim();
+  const position = document.getElementById('main-position').value.trim();
+  const lab = document.getElementById('lab').value;
+
+  if (!name && !category && !amount && !position && !lab) {
+    el.innerHTML = '<span style="color:#a0aec0;font-size:0.85rem;">尚未填寫</span>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="h-row">👤 姓名：${name || '<span style="color:#c53030;">（未填）</span>'}</div>
+    <div class="h-row">📋 項目：${category || '<span style="color:#c53030;">（未選擇）</span>'}</div>
+    ${detail ? `<div class="h-row">🔎 明細：${detail}</div>` : ''}
+    ${color ? `<div class="h-row">🎨 顏色：${color}</div>` : ''}
+    ${amount ? `<div class="h-row">💰 金額：${Number(amount).toLocaleString()}</div>` : ''}
+    ${position ? `<div class="h-row">📍 部位：${position}</div>` : ''}
+    ${lab ? `<div class="h-row">🏭 技工所：${lab}</div>` : ''}
+  `;
 }
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -866,6 +909,7 @@ function stopVoice() {
     const ta = document.getElementById(currentField);
     if (btn) { btn.classList.remove('active'); btn.textContent = '🎤'; }
     if (ta) ta.classList.remove('listening');
+    if (currentField === 'name') renderMainSummary();
   }
   isListening = false;
   currentField = null;
@@ -1097,11 +1141,16 @@ function updateLocDisplay(fieldId) {
   const sel = locSelections[fieldId];
   document.getElementById(fieldId).value = sel.join(' ');
   const el = document.getElementById(fieldId + '-result');
-  if (!el) return;
-  if (sel.length === 0) { el.innerHTML = '<span style="color:#a0aec0">尚未選擇</span>'; return; }
-  el.innerHTML = sel.map(v =>
-    `<span class="loc-tag">${v}<button class="loc-tag-del" onclick="removeLocItem('${fieldId}','${v}')">[刪]</button></span>`
-  ).join('');
+  if (el) {
+    if (sel.length === 0) {
+      el.innerHTML = '<span style="color:#a0aec0">尚未選擇</span>';
+    } else {
+      el.innerHTML = sel.map(v =>
+        `<span class="loc-tag">${v}<button class="loc-tag-del" onclick="removeLocItem('${fieldId}','${v}')">[刪]</button></span>`
+      ).join('');
+    }
+  }
+  if (fieldId === 'main-position') renderMainSummary();
 }
 
 function clearLocChips(fieldId) {
