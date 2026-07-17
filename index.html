@@ -259,7 +259,10 @@
   <div id="main-chip-groups"><div class="detail-hint">請先選擇上方的項目種類</div></div>
   <div id="main-color-row" style="display:none;margin-top:8px;">
     <div class="field-label" style="margin-top:8px;">顏色</div>
-    <div class="field-row"><input id="main-color" type="text" placeholder="例如 A2 / A3.5 / 依現場比色"></div>
+    <div class="field-row">
+      <input id="main-color" type="text" placeholder="點此欄位，再按鍵盤🎤說話，或直接輸入">
+      <button class="mic-btn" id="mic-main-color" onclick="toggleVoice('main-color')" title="語音輸入">🎤</button>
+    </div>
   </div>
 </div>
 
@@ -370,7 +373,10 @@
       <div id="edit-chip-groups"><div class="detail-hint">請先選擇上方的項目種類</div></div>
       <div id="edit-color-row" style="display:none;margin-top:8px;">
         <div style="font-size:0.8rem;font-weight:600;color:#718096;margin:8px 0 6px;">顏色</div>
-        <div class="field-row"><input id="edit-color" type="text"></div>
+        <div class="field-row">
+          <input id="edit-color" type="text">
+          <button class="mic-btn" id="mic-edit-color" onclick="toggleVoice('edit-color')" style="margin-top:0">🎤</button>
+        </div>
       </div>
     </div>
 
@@ -542,8 +548,9 @@ const CATEGORIES = [
   { id:'recement',   label:'假牙黏著',   icon:'🧲' },
 ];
 
-const mainState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false };
-const editState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false };
+const mainState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false, quantity:null };
+const editState = { catId:null, material:null, type:null, arch:null, redo:false, clear:false, quantity:null };
+const QUANTITY_OPTIONS = ['1','2','3','4','5','6','7','8','9','10'];
 
 function getCat(catId) { return CATEGORIES.find(c => c.id === catId); }
 
@@ -559,7 +566,7 @@ function selectCategory(prefix, catId) {
   const state = prefix === 'main' ? mainState : editState;
   if (state.catId === catId) return;
   state.catId = catId;
-  state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false;
+  state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false; state.quantity = null;
   renderCatChips(prefix);
   renderDetailFields(prefix);
 }
@@ -603,7 +610,8 @@ function renderDetailFields(prefix) {
     if (cat.clear) html += `<button class="loc-chip${state.clear ? ' flag-on' : ''}" onclick="toggleDetailFlag('${prefix}','clear')">🔍 透明</button>`;
     html += `</div>`;
   }
-  groupsEl.innerHTML = html || '<div class="detail-hint">此項目無需額外明細，直接填部位／技工所／金額即可</div>';
+  chipGroup('數量', 'quantity', QUANTITY_OPTIONS);
+  groupsEl.innerHTML = html;
   colorRow.style.display = cat.color ? 'block' : 'none';
   if (prefix === 'main') renderMainSummary();
 }
@@ -616,18 +624,19 @@ function summarizeDetail(prefix) {
   if (state.arch) parts.push(state.arch);
   if (state.redo) parts.push('重作');
   if (state.clear) parts.push('透明');
+  if (state.quantity) parts.push(state.quantity + '顆');
   return parts.join('、');
 }
 
 function resetCategoryState(prefix) {
   const state = prefix === 'main' ? mainState : editState;
-  state.catId = null; state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false;
+  state.catId = null; state.material = null; state.type = null; state.arch = null; state.redo = false; state.clear = false; state.quantity = null;
   renderCatChips(prefix);
   renderDetailFields(prefix);
 }
 
 // ── 金額快速鍵（僅為常見整數金額佔位，請依診所實際收費調整）──
-const AMOUNT_PRESETS = [500, 1000, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 35000, 50000, 90000, 100000, 120000];
+const AMOUNT_PRESETS = [300, 500, 1000, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 35000, 50000, 90000, 100000, 120000];
 
 function pickAmount(prefix, amt) {
   document.getElementById(prefix + '-amount').value = amt;
@@ -1249,10 +1258,11 @@ function openEdit(i) {
     editState.arch = h.selections.arch || null;
     editState.redo = !!h.selections.redo;
     editState.clear = !!h.selections.clear;
+    editState.quantity = h.selections.quantity || null;
   } else {
     const matched = CATEGORIES.find(c => c.label === h.category);
     editState.catId = matched ? matched.id : null;
-    editState.material = null; editState.type = null; editState.arch = null; editState.redo = false; editState.clear = false;
+    editState.material = null; editState.type = null; editState.arch = null; editState.redo = false; editState.clear = false; editState.quantity = null;
   }
   renderCatChips('edit');
   renderDetailFields('edit');
