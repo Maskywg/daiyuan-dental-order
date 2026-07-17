@@ -531,12 +531,12 @@ const CATEGORIES = [
   { id:'removable',  label:'活動假牙',   icon:'😬', type:['全口假牙','臨時活動假牙','正式活動假牙'], arch:['上顎','下顎','全口'], color:true },
   { id:'core',       label:'鑄心',       icon:'🔩', type:['P1','P2'] },
   { id:'temp',       label:'臨時假牙',   icon:'⏳', arch:['上顎','下顎','全口'], color:true },
-  { id:'expander',   label:'擴張器',     icon:'↔️', arch:['上顎','下顎','全口'], redo:true, clear:true },
-  { id:'guide',      label:'誘導板',     icon:'📐', arch:['上顎','下顎','全口'], redo:true, clear:true },
-  { id:'retainer',   label:'維持器',     icon:'🛡️', arch:['上顎','下顎','全口'], redo:true, clear:true },
-  { id:'softliner',  label:'軟墊',       icon:'🧽', arch:['上顎','下顎','全口'], redo:true, clear:true },
-  { id:'functional', label:'功能性矯正器', icon:'🦴', arch:['上顎','下顎','全口'] },
-  { id:'mixed',      label:'混合齒列矯正', icon:'🪥', arch:['上顎','下顎','全口'] },
+  { id:'expander',   label:'擴張器',     icon:'↔️', arch:['上顎','下顎','全口'], redo:true, clear:true, qtyUnit:'副' },
+  { id:'guide',      label:'誘導板',     icon:'📐', arch:['上顎','下顎','全口'], redo:true, clear:true, qtyUnit:'副' },
+  { id:'retainer',   label:'維持器',     icon:'🛡️', arch:['上顎','下顎','全口'], redo:true, clear:true, qtyUnit:'副' },
+  { id:'softliner',  label:'軟墊',       icon:'🧽', arch:['上顎','下顎','全口'], redo:true, clear:true, qtyUnit:'副' },
+  { id:'functional', label:'功能性矯正器', icon:'🦴', arch:['上顎','下顎','全口'], qtyUnit:'副' },
+  { id:'mixed',      label:'混合齒列矯正', icon:'🪥', arch:['上顎','下顎','全口'], qtyUnit:'副' },
   { id:'fluoride',   label:'塗氟',       icon:'💧' },
   { id:'ortho',      label:'矯正',       icon:'🧩', type:['拔牙矯正','非拔牙矯正'] },
   { id:'implant',    label:'植牙',       icon:'⚙️', arch:['上顎','下顎','全口'] },
@@ -610,7 +610,7 @@ function renderDetailFields(prefix) {
     if (cat.clear) html += `<button class="loc-chip${state.clear ? ' flag-on' : ''}" onclick="toggleDetailFlag('${prefix}','clear')">🔍 透明</button>`;
     html += `</div>`;
   }
-  chipGroup('數量', 'quantity', QUANTITY_OPTIONS);
+  chipGroup(`數量（${cat.qtyUnit || '顆'}）`, 'quantity', QUANTITY_OPTIONS);
   groupsEl.innerHTML = html;
   colorRow.style.display = cat.color ? 'block' : 'none';
   if (prefix === 'main') renderMainSummary();
@@ -618,13 +618,14 @@ function renderDetailFields(prefix) {
 
 function summarizeDetail(prefix) {
   const state = prefix === 'main' ? mainState : editState;
+  const cat = getCat(state.catId);
   const parts = [];
   if (state.material) parts.push(state.material);
   if (state.type) parts.push(state.type);
   if (state.arch) parts.push(state.arch);
   if (state.redo) parts.push('重作');
   if (state.clear) parts.push('透明');
-  if (state.quantity) parts.push(state.quantity + '顆');
+  if (state.quantity) parts.push(state.quantity + (cat && cat.qtyUnit ? cat.qtyUnit : '顆'));
   return parts.join('、');
 }
 
