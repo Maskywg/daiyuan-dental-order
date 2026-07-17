@@ -790,6 +790,47 @@ function init() {
   renderMainSummary();
 }
 
+function summaryRow(icon, label, value, key, jumpId, placeholder) {
+  const hasValue = !!value;
+  const displayValue = hasValue ? value : (placeholder ? `<span style="color:#c53030;">（${placeholder}）</span>` : '');
+  if (!hasValue && !placeholder) return '';
+  return `<div class="h-row" style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+    <span>${icon} ${label}：${displayValue}</span>
+    <span style="display:flex;gap:2px;flex-shrink:0;">
+      <button onclick="jumpToField('${jumpId}')" title="修改" style="background:none;border:none;cursor:pointer;font-size:0.9rem;padding:2px 4px;">✏️</button>
+      ${hasValue ? `<button onclick="clearSummaryField('${key}')" title="刪除" style="background:none;border:none;cursor:pointer;font-size:0.9rem;padding:2px 4px;">🗑️</button>` : ''}
+    </span>
+  </div>`;
+}
+
+function jumpToField(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (el.focus) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+}
+
+function clearSummaryField(key) {
+  if (key === 'name') {
+    const ta = document.getElementById('name');
+    ta.value = ''; ta.style.height = '';
+    document.getElementById('name-suggest').innerHTML = '';
+  } else if (key === 'category') {
+    resetCategoryState('main');
+    const colorInput = document.getElementById('main-color');
+    if (colorInput) colorInput.value = '';
+  } else if (key === 'color') {
+    document.getElementById('main-color').value = '';
+  } else if (key === 'amount') {
+    document.getElementById('main-amount').value = '';
+  } else if (key === 'position') {
+    clearLocChips('main-position');
+  } else if (key === 'lab') {
+    document.getElementById('lab').value = '';
+  }
+  renderMainSummary();
+}
+
 function renderMainSummary() {
   const el = document.getElementById('main-summary');
   if (!el) return;
@@ -797,6 +838,7 @@ function renderMainSummary() {
   const cat = getCat(mainState.catId);
   const category = cat ? cat.label : '';
   const detail = cat ? summarizeDetail('main') : '';
+  const categoryDisplay = category ? (category + (detail ? `（${detail}）` : '')) : '';
   const colorEl = document.getElementById('main-color');
   const color = cat && cat.color && colorEl ? colorEl.value.trim() : '';
   const amount = document.getElementById('main-amount').value.trim();
@@ -808,15 +850,13 @@ function renderMainSummary() {
     return;
   }
 
-  el.innerHTML = `
-    <div class="h-row">👤 姓名：${name || '<span style="color:#c53030;">（未填）</span>'}</div>
-    <div class="h-row">📋 項目：${category || '<span style="color:#c53030;">（未選擇）</span>'}</div>
-    ${detail ? `<div class="h-row">🔎 明細：${detail}</div>` : ''}
-    ${color ? `<div class="h-row">🎨 顏色：${color}</div>` : ''}
-    ${amount ? `<div class="h-row">💰 金額：${Number(amount).toLocaleString()}</div>` : ''}
-    ${position ? `<div class="h-row">📍 部位：${position}</div>` : ''}
-    ${lab ? `<div class="h-row">🏭 技工所：${lab}</div>` : ''}
-  `;
+  el.innerHTML =
+    summaryRow('👤', '姓名', name, 'name', 'name', '未填') +
+    summaryRow('📋', '項目', categoryDisplay, 'category', 'main-cat-chips', '未選擇') +
+    summaryRow('🎨', '顏色', color, 'color', 'main-color') +
+    summaryRow('💰', '金額', amount ? Number(amount).toLocaleString() : '', 'amount', 'main-amount') +
+    summaryRow('📍', '部位', position, 'position', 'main-position-result') +
+    summaryRow('🏭', '技工所', lab, 'lab', 'lab');
 }
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
