@@ -316,6 +316,15 @@
   <div class="loc-group" id="main-amount-chips" style="margin-top:8px;"></div>
 </div>
 
+<!-- 特殊標注事項 -->
+<div class="card">
+  <div class="field-label">特殊標注事項</div>
+  <div class="field-row">
+    <textarea id="note" rows="2" placeholder="點此欄位，再按鍵盤🎤說話，或直接輸入"></textarea>
+    <button class="mic-btn" id="mic-note" onclick="toggleVoice('note')" title="語音輸入">🎤</button>
+  </div>
+</div>
+
 <!-- 確認資料 -->
 <div class="card" id="main-summary-card" style="border:1.5px solid #99f6e4;">
   <div class="field-label">📋 確認資料（上傳前請檢查）</div>
@@ -429,6 +438,14 @@
       <div class="loc-group" id="edit-amount-chips" style="margin-top:8px;"></div>
     </div>
 
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">特殊標注事項</div>
+      <div class="field-row">
+        <textarea id="edit-note" rows="2" style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:1rem;font-family:inherit;resize:none;"></textarea>
+        <button class="mic-btn" id="mic-edit-note" onclick="toggleVoice('edit-note')" style="margin-top:0">🎤</button>
+      </div>
+    </div>
+
     <div style="display:flex;gap:10px;">
       <button onclick="playBell(); saveEdit()" style="flex:1;padding:14px;background:#0f766e;color:white;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">💾 儲存修改</button>
       <button onclick="closeEdit()" style="flex:1;padding:14px;background:#e2e8f0;color:#4a5568;border:none;border-radius:12px;font-size:1rem;cursor:pointer;">取消</button>
@@ -464,7 +481,7 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
   const action = (e.parameter.action || 'insert');
 
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','金額','部位','ID']);
+    sheet.appendRow(['時間戳記','患者姓名','項目種類','明細','技工所','顏色','金額','部位','特殊標注事項','ID']);
   }
 
   if (action === 'getAll') {
@@ -472,8 +489,8 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
     const rows = [];
     for (let i = 1; i < data.length; i++) {
       const r = data[i];
-      if (!r[8]) continue;
-      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], amount:r[6], position:r[7], id:String(r[8]) });
+      if (!r[9]) continue;
+      rows.push({ time:r[0], name:r[1], category:r[2], detail:r[3], lab:r[4], color:r[5], amount:r[6], position:r[7], note:r[8], id:String(r[9]) });
     }
     rows.reverse();
     return ContentService.createTextOutput(JSON.stringify({ result:'success', rows }))
@@ -490,8 +507,8 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
   if (action === 'update') {
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][8]) === String(e.parameter.id)) {
-        sheet.getRange(i + 1, 1, 1, 9).setValues([[
+      if (String(data[i][9]) === String(e.parameter.id)) {
+        sheet.getRange(i + 1, 1, 1, 10).setValues([[
           new Date().toLocaleString('zh-TW'),
           e.parameter.name || '',
           e.parameter.category || '',
@@ -500,6 +517,7 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
           e.parameter.color || '',
           e.parameter.amount || '',
           e.parameter.position || '',
+          e.parameter.note || '',
           e.parameter.id
         ]]);
         break;
@@ -518,6 +536,7 @@ const APPS_SCRIPT_CODE = `function doGet(e) {
     e.parameter.color || '',
     e.parameter.amount || '',
     e.parameter.position || '',
+    e.parameter.note || '',
     e.parameter.id || ''
   ]);
 
@@ -798,6 +817,7 @@ function init() {
   document.getElementById('main-color').addEventListener('input', renderMainSummary);
   document.getElementById('main-amount').addEventListener('input', renderMainSummary);
   document.getElementById('lab').addEventListener('change', renderMainSummary);
+  document.getElementById('note').addEventListener('input', renderMainSummary);
   renderMainSummary();
 }
 
@@ -838,6 +858,9 @@ function clearSummaryField(key) {
     clearLocChips('main-position');
   } else if (key === 'lab') {
     document.getElementById('lab').value = '';
+  } else if (key === 'note') {
+    const noteTa = document.getElementById('note');
+    noteTa.value = ''; noteTa.style.height = '';
   }
   renderMainSummary();
 }
@@ -855,8 +878,9 @@ function renderMainSummary() {
   const amount = document.getElementById('main-amount').value.trim();
   const position = document.getElementById('main-position').value.trim();
   const lab = document.getElementById('lab').value;
+  const note = document.getElementById('note').value.trim();
 
-  if (!name && !category && !amount && !position && !lab) {
+  if (!name && !category && !amount && !position && !lab && !note) {
     el.innerHTML = '<span style="color:#a0aec0;font-size:0.85rem;">尚未填寫</span>';
     return;
   }
@@ -867,7 +891,8 @@ function renderMainSummary() {
     summaryRow('🎨', '顏色', color, 'color', 'main-color') +
     summaryRow('💰', '金額', amount ? Number(amount).toLocaleString() : '', 'amount', 'main-amount') +
     summaryRow('📍', '部位', position, 'position', 'main-position-result') +
-    summaryRow('🏭', '技工所', lab, 'lab', 'lab');
+    summaryRow('🏭', '技工所', lab, 'lab', 'lab') +
+    summaryRow('📝', '特殊標注', note, 'note', 'note');
 }
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -960,7 +985,7 @@ function stopVoice() {
     const ta = document.getElementById(currentField);
     if (btn) { btn.classList.remove('active'); btn.textContent = '🎤'; }
     if (ta) ta.classList.remove('listening');
-    if (currentField === 'name') renderMainSummary();
+    if (currentField === 'name' || currentField === 'note' || currentField === 'main-color') renderMainSummary();
   }
   isListening = false;
   currentField = null;
@@ -1014,10 +1039,10 @@ async function testConnection() {
   setStatus('🔗 測試連線中...', true);
   try {
     const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', amount:'', position:'' });
+    const params = new URLSearchParams({ action:'insert', id, name:'測試', category:'連線測試', detail:'', lab:'', color:'', amount:'', position:'', note:'' });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     showToast('✅ 連線測試成功！請查看 Google Sheet', 'success');
-    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', amount:'', position:'', id });
+    addHistory({ name:'測試', catId:null, category:'連線測試', detail:'', lab:'', color:'', amount:'', position:'', note:'', id });
   } catch (err) {
     showToast('❌ 連線失敗：' + err.message, 'error');
   }
@@ -1039,6 +1064,7 @@ async function submitData() {
   const amount = document.getElementById('main-amount').value.trim();
   const position = document.getElementById('main-position').value.trim();
   const lab = document.getElementById('lab').value;
+  const note = document.getElementById('note').value.trim();
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -1046,9 +1072,9 @@ async function submitData() {
 
   try {
     const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, amount, position });
+    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, amount, position, note });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
-    addHistory({ name, catId: mainState.catId, category, detail, lab, color, amount, position, id, selections: { ...mainState } });
+    addHistory({ name, catId: mainState.catId, category, detail, lab, color, amount, position, note, id, selections: { ...mainState } });
     showToast('✅ 上傳成功！', 'success');
     clearAll();
   } catch (err) {
@@ -1084,6 +1110,7 @@ function renderHistory() {
       ${h.amount ? `<div class="h-row">💰 金額：${Number(h.amount).toLocaleString()}</div>` : ''}
       ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
       ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
+      ${h.note ? `<div class="h-row">📝 特殊標注：${h.note}</div>` : ''}
       <div class="h-time">${h.time}</div>
     </div>
   `).join('');
@@ -1107,6 +1134,8 @@ function clearAll() {
   const colorInput = document.getElementById('main-color');
   if (colorInput) colorInput.value = '';
   document.getElementById('main-amount').value = '';
+  const noteTa = document.getElementById('note');
+  noteTa.value = ''; noteTa.style.height = '';
   clearLocChips('main-position');
   setStatus('點擊 🎤 開始語音輸入');
 }
@@ -1270,6 +1299,7 @@ function openEdit(i) {
   const colorInput = document.getElementById('edit-color');
   if (colorInput) colorInput.value = h.color || '';
   document.getElementById('edit-amount').value = h.amount || '';
+  document.getElementById('edit-note').value = h.note || '';
 
   setLocChips('edit-position', h.position || '');
   document.getElementById('edit-lab').value = h.lab || '';
@@ -1297,6 +1327,7 @@ async function saveEdit() {
   const amount = document.getElementById('edit-amount').value.trim();
   const position = document.getElementById('edit-position').value;
   const lab = document.getElementById('edit-lab').value;
+  const note = document.getElementById('edit-note').value.trim();
 
   const saveBtn = document.querySelector('#editModal button');
   saveBtn.disabled = true;
@@ -1304,10 +1335,10 @@ async function saveEdit() {
 
   try {
     if (h.id && scriptUrl) {
-      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, amount, position });
+      const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, amount, position, note });
       await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     }
-    history[editIndex] = { ...h, name, category, detail, lab, color, amount, position, selections: { ...editState } };
+    history[editIndex] = { ...h, name, category, detail, lab, color, amount, position, note, selections: { ...editState } };
     localStorage.setItem('daiyuanHistory', JSON.stringify(history));
     renderHistory();
     closeEdit();
