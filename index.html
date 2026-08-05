@@ -247,6 +247,12 @@
   <div class="quick-chips" id="name-suggest" style="margin-top:6px;"></div>
 </div>
 
+<!-- 已加入項目清單（本次多項合併用） -->
+<div class="card" id="main-cart-card" style="display:none;border:1.5px solid #0f766e;">
+  <div class="field-label">🗂 本次已加入項目</div>
+  <div id="main-cart-list"></div>
+</div>
+
 <!-- 項目種類 -->
 <div class="card">
   <div class="field-label">項目種類</div>
@@ -324,6 +330,8 @@
     <button class="mic-btn" id="mic-note" onclick="toggleVoice('note')" title="語音輸入">🎤</button>
   </div>
 </div>
+
+<button class="clear-btn" onclick="addCartItem()" style="margin-top:0;color:#0f766e;border-color:#99f6e4;font-weight:700;">➕ 加入此項目，繼續新增下一項</button>
 
 <!-- 確認資料 -->
 <div class="card" id="main-summary-card" style="border:1.5px solid #99f6e4;">
@@ -880,14 +888,19 @@ function renderMainSummary() {
   const lab = document.getElementById('lab').value;
   const note = document.getElementById('note').value.trim();
 
-  if (!name && !category && !amount && !position && !lab && !note) {
+  if (!name && !category && !amount && !position && !lab && !note && !cartItems.length) {
     el.innerHTML = '<span style="color:#a0aec0;font-size:0.85rem;">尚未填寫</span>';
     return;
   }
 
+  const cartNotice = cartItems.length
+    ? `<div class="h-row" style="color:#0f766e;font-weight:600;">🗂 已加入 ${cartItems.length} 項（見上方清單），上傳時會與下方這項合併成同一列</div>`
+    : '';
+
   el.innerHTML =
+    cartNotice +
     summaryRow('👤', '姓名', name, 'name', 'name', '未填') +
-    summaryRow('📋', '項目', categoryDisplay, 'category', 'main-cat-chips', '未選擇') +
+    summaryRow('📋', '項目', categoryDisplay, 'category', 'main-cat-chips', cartItems.length ? '' : '未選擇') +
     summaryRow('🎨', '顏色', color, 'color', 'main-color') +
     summaryRow('💰', '金額', amount ? Number(amount).toLocaleString() : '', 'amount', 'main-amount') +
     summaryRow('📍', '部位', position, 'position', 'main-position-result') +
@@ -1049,6 +1062,91 @@ async function testConnection() {
   setStatus('點擊 🎤 開始語音輸入');
 }
 
+// ── 多項目清單（同一病患本次多項收費，合併成一列上傳）──
+let cartItems = [];
+
+function buildCurrentItem() {
+  const cat = getCat(mainState.catId);
+  if (!cat) return null;
+  return {
+    category: cat.label,
+    detail: summarizeDetail('main'),
+    color: cat.color ? document.getElementById('main-color').value.trim() : '',
+    amount: document.getElementById('main-amount').value.trim(),
+    position: document.getElementById('main-position').value.trim(),
+    lab: document.getElementById('lab').value,
+    note: document.getElementById('note').value.trim(),
+  };
+}
+
+function clearItemFields() {
+  resetCategoryState('main');
+  const colorInput = document.getElementById('main-color');
+  if (colorInput) colorInput.value = '';
+  document.getElementById('main-amount').value = '';
+  document.getElementById('lab').value = '';
+  const noteTa = document.getElementById('note');
+  noteTa.value = ''; noteTa.style.height = '';
+  clearLocChips('main-position');
+}
+
+function addCartItem() {
+  const item = buildCurrentItem();
+  if (!item) { showToast('請先選擇項目種類', 'error'); return; }
+  cartItems.push(item);
+  clearItemFields();
+  renderCartItems();
+  renderMainSummary();
+  showToast('✅ 已加入項目清單，可繼續新增下一項', 'success');
+}
+
+function removeCartItem(i) {
+  cartItems.splice(i, 1);
+  renderCartItems();
+  renderMainSummary();
+}
+
+function renderCartItems() {
+  const card = document.getElementById('main-cart-card');
+  const el = document.getElementById('main-cart-list');
+  if (!cartItems.length) { card.style.display = 'none'; el.innerHTML = ''; return; }
+  card.style.display = 'block';
+  el.innerHTML = cartItems.map((it, i) => `
+    <div class="history-item">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="h-name">${i + 1}. ${it.category}${it.detail ? `（${it.detail}）` : ''}</div>
+        <button onclick="removeCartItem(${i})" style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;flex-shrink:0;margin-left:8px;">🗑️ 移除</button>
+      </div>
+      ${it.color ? `<div class="h-row">🎨 顏色：${it.color}</div>` : ''}
+      ${it.amount ? `<div class="h-row">💰 金額：${Number(it.amount).toLocaleString()}</div>` : ''}
+      ${it.position ? `<div class="h-row">📍 部位：${it.position}</div>` : ''}
+      ${it.lab ? `<div class="h-row">🏭 技工所：${it.lab}</div>` : ''}
+      ${it.note ? `<div class="h-row">📝 特殊標注：${it.note}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function mergeItemsForSubmit() {
+  const cur = buildCurrentItem();
+  const items = cur ? [...cartItems, cur] : [...cartItems];
+  if (!items.length) return null;
+  const join = (vals, sep) => vals.filter(Boolean).join(sep);
+  const amountSum = items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+  const single = items.length === 1;
+  return {
+    single,
+    category: join(items.map(it => it.category), '、'),
+    detail: single
+      ? items[0].detail
+      : join(items.map(it => it.category + (it.detail ? `：${it.detail}` : '')), '；'),
+    color: join(items.map(it => it.color), '、'),
+    amount: amountSum ? String(amountSum) : '',
+    position: join(items.map(it => it.position), '、'),
+    lab: join(items.map(it => it.lab), '、'),
+    note: join(items.map(it => it.note), '；'),
+  };
+}
+
 async function submitData() {
   if (!scriptUrl) {
     showConfig();
@@ -1057,14 +1155,15 @@ async function submitData() {
   const name = document.getElementById('name').value.trim();
   if (!name) { showToast('請輸入患者姓名', 'error'); return; }
 
-  const cat = getCat(mainState.catId);
-  const category = cat ? cat.label : '';
-  const detail = cat ? summarizeDetail('main') : '';
-  const color = cat && cat.color ? document.getElementById('main-color').value.trim() : '';
-  const amount = document.getElementById('main-amount').value.trim();
-  const position = document.getElementById('main-position').value.trim();
-  const lab = document.getElementById('lab').value;
-  const note = document.getElementById('note').value.trim();
+  const merged = mergeItemsForSubmit();
+  const category = merged ? merged.category : '';
+  const detail = merged ? merged.detail : '';
+  const color = merged ? merged.color : '';
+  const amount = merged ? merged.amount : '';
+  const position = merged ? merged.position : '';
+  const lab = merged ? merged.lab : '';
+  const note = merged ? merged.note : '';
+  const isSingleItem = !cartItems.length;
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -1074,8 +1173,12 @@ async function submitData() {
     const id = Date.now().toString();
     const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, amount, position, note });
     await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
-    addHistory({ name, catId: mainState.catId, category, detail, lab, color, amount, position, note, id, selections: { ...mainState } });
+    const historyItem = { name, catId: isSingleItem ? mainState.catId : null, category, detail, lab, color, amount, position, note, id };
+    if (isSingleItem) historyItem.selections = { ...mainState };
+    addHistory(historyItem);
     showToast('✅ 上傳成功！', 'success');
+    cartItems = [];
+    renderCartItems();
     clearAll();
   } catch (err) {
     showToast('上傳失敗：' + err.message, 'error');
@@ -1128,15 +1231,10 @@ function clearAll() {
   stopVoice();
   const ta = document.getElementById('name');
   ta.value = ''; ta.style.height = '';
-  document.getElementById('lab').value = '';
   document.getElementById('name-suggest').innerHTML = '';
-  resetCategoryState('main');
-  const colorInput = document.getElementById('main-color');
-  if (colorInput) colorInput.value = '';
-  document.getElementById('main-amount').value = '';
-  const noteTa = document.getElementById('note');
-  noteTa.value = ''; noteTa.style.height = '';
-  clearLocChips('main-position');
+  clearItemFields();
+  cartItems = [];
+  renderCartItems();
   setStatus('點擊 🎤 開始語音輸入');
 }
 
