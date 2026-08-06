@@ -1220,7 +1220,7 @@ function renderHoldingList() {
         <div class="h-name">👤 ${h.name || '（未填姓名）'}</div>
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
           <button onclick="openHoldingEdit('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:${uploading ? 'not-allowed' : 'pointer'};pointer-events:${uploading ? 'none' : 'auto'};opacity:${uploading ? '0.5' : '1'};">✏️ 修改</button>
-          <button onclick="uploadHoldingItem('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#dd6b20;border:1px solid #dd6b20;color:white;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:${uploading ? 'not-allowed' : 'pointer'};pointer-events:${uploading ? 'none' : 'auto'};opacity:${uploading ? '0.6' : '1'};">${uploading ? '⏳ 上傳中...' : '⬆️ 上傳'}</button>
+          <button onclick="uploadHoldingItem('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:${uploading ? '#718096' : '#dd6b20'};border:1px solid ${uploading ? '#718096' : '#dd6b20'};color:white;border-radius:8px;padding:4px 10px;font-size:0.8rem;font-weight:${uploading ? '700' : '400'};cursor:${uploading ? 'not-allowed' : 'pointer'};pointer-events:${uploading ? 'none' : 'auto'};">${uploading ? '⏳ 上傳中...' : '⬆️ 上傳'}</button>
           <button onclick="removeHoldingItem('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:${uploading ? 'not-allowed' : 'pointer'};pointer-events:${uploading ? 'none' : 'auto'};opacity:${uploading ? '0.5' : '1'};">🗑️ 移除</button>
         </div>
       </div>
@@ -1260,6 +1260,7 @@ async function uploadHoldingItem(holdId) {
   if (uploadingHoldIds.has(holdId)) return; // 已在上傳中，忽略重複點擊
   const h = holdingPatients.find(x => x.holdId === holdId);
   if (!h) return;
+  playBell();
   uploadingHoldIds.add(holdId);
   renderHoldingList();
   showToast('⏳ 上傳中，請稍候...');
