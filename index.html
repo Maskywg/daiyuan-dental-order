@@ -1185,10 +1185,14 @@ function saveHolding() {
   localStorage.setItem('daiyuanHolding', JSON.stringify(holdingPatients));
 }
 
+// 進行中的保留區上傳（防止手速快、網路慢時同一筆被連點多次而重複上傳）
+const uploadingHoldIds = new Set();
+
 function addToHolding() {
   const name = document.getElementById('name').value.trim();
   if (!name) { showToast('請輸入患者姓名', 'error'); return; }
   const entry = buildFullEntry();
+  entry.holdId = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   holdingPatients.push(entry);
   saveHolding();
   clearAll();
@@ -1196,9 +1200,9 @@ function addToHolding() {
   showToast('✅ 已存入保留區，可繼續輸入下一位', 'success');
 }
 
-function removeHoldingItem(i) {
+function removeHoldingItem(holdId) {
   if (!confirm('確定要移除這筆保留資料？（尚未上傳，移除後需重新輸入）')) return;
-  holdingPatients.splice(i, 1);
+  holdingPatients = holdingPatients.filter(h => h.holdId !== holdId);
   saveHolding();
   renderHoldingList();
 }
@@ -1208,14 +1212,16 @@ function renderHoldingList() {
   const el = document.getElementById('holding-list');
   if (!holdingPatients.length) { card.style.display = 'none'; el.innerHTML = ''; return; }
   card.style.display = 'block';
-  el.innerHTML = holdingPatients.map((h, i) => `
+  el.innerHTML = holdingPatients.map((h) => {
+    const uploading = uploadingHoldIds.has(h.holdId);
+    return `
     <div class="history-item" style="border-left-color:#dd6b20;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
         <div class="h-name">👤 ${h.name || '（未填姓名）'}</div>
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
-          <button onclick="openHoldingEdit(${i})" style="background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">✏️ 修改</button>
-          <button onclick="uploadHoldingItem(${i})" style="background:#dd6b20;border:1px solid #dd6b20;color:white;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">⬆️ 上傳</button>
-          <button onclick="removeHoldingItem(${i})" style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">🗑️ 移除</button>
+          <button onclick="openHoldingEdit('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">✏️ 修改</button>
+          <button onclick="uploadHoldingItem('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#dd6b20;border:1px solid #dd6b20;color:white;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;opacity:${uploading ? '0.6' : '1'};">${uploading ? '⏳ 上傳中...' : '⬆️ 上傳'}</button>
+          <button onclick="removeHoldingItem('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">🗑️ 移除</button>
         </div>
       </div>
       <div class="h-row">📋 項目：${h.category || '—'}</div>
@@ -1226,7 +1232,8 @@ function renderHoldingList() {
       ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
       ${h.note ? `<div class="h-row">📝 特殊標注：${h.note}</div>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function uploadEntry(h) {
@@ -1238,18 +1245,23 @@ async function uploadEntry(h) {
   addHistory(historyItem);
 }
 
-async function uploadHoldingItem(i) {
+async function uploadHoldingItem(holdId) {
   if (!scriptUrl) { showConfig(); return; }
-  const h = holdingPatients[i];
+  if (uploadingHoldIds.has(holdId)) return; // 已在上傳中，忽略重複點擊
+  const h = holdingPatients.find(x => x.holdId === holdId);
+  if (!h) return;
+  uploadingHoldIds.add(holdId);
+  renderHoldingList();
   try {
     await uploadEntry(h);
-    holdingPatients.splice(i, 1);
+    holdingPatients = holdingPatients.filter(x => x.holdId !== holdId);
     saveHolding();
-    renderHoldingList();
     showToast('✅ 已上傳：' + h.name, 'success');
   } catch (err) {
     showToast('上傳失敗：' + err.message, 'error');
   }
+  uploadingHoldIds.delete(holdId);
+  renderHoldingList();
 }
 
 async function submitData() {
@@ -1273,24 +1285,32 @@ async function submitData() {
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
 
-  const total = holdingPatients.length;
+  // 排除目前已經在個別上傳中的項目，避免同一筆被整批上傳重複送出
+  const targets = holdingPatients.filter(h => !uploadingHoldIds.has(h.holdId));
+  targets.forEach(h => uploadingHoldIds.add(h.holdId));
+  renderHoldingList();
+
+  const total = targets.length;
   let successCount = 0;
-  const remaining = [];
-  for (const h of holdingPatients) {
+  const succeededIds = new Set();
+  for (const h of targets) {
     try {
       btn.textContent = `上傳中...（${successCount + 1}/${total}）`;
       await uploadEntry(h);
+      succeededIds.add(h.holdId);
       successCount++;
     } catch (err) {
-      remaining.push(h);
+      // 失敗的留在保留區，稍後可重試
     }
+    uploadingHoldIds.delete(h.holdId);
   }
-  holdingPatients = remaining;
+  holdingPatients = holdingPatients.filter(h => !succeededIds.has(h.holdId));
   saveHolding();
   renderHoldingList();
 
-  if (remaining.length) {
-    showToast(`⚠️ 已上傳 ${successCount} 筆，${remaining.length} 筆失敗仍留在保留區`, 'error');
+  const failedCount = total - successCount;
+  if (failedCount) {
+    showToast(`⚠️ 已上傳 ${successCount} 筆，${failedCount} 筆失敗仍留在保留區`, 'error');
   } else {
     showToast(`✅ 已整批上傳 ${successCount} 筆！`, 'success');
   }
@@ -1483,6 +1503,7 @@ function playBell() {
 }
 
 let editIndex = null;
+let editHoldId = null;
 let editMode = 'history'; // 'history'：修改已上傳的今日紀錄（會呼叫 Sheet update）；'holding'：修改保留區裡尚未上傳的資料（只更新本機）
 
 function populateEditModal(h) {
@@ -1521,11 +1542,14 @@ function openEdit(i) {
   document.getElementById('editModal').style.display = 'flex';
 }
 
-function openHoldingEdit(i) {
+function openHoldingEdit(holdId) {
+  if (uploadingHoldIds.has(holdId)) return; // 上傳中不可編輯
+  const h = holdingPatients.find(x => x.holdId === holdId);
+  if (!h) return;
   editMode = 'holding';
-  editIndex = i;
+  editHoldId = holdId;
   document.getElementById('editModalTitle').textContent = '✏️ 修改保留區資料';
-  populateEditModal(holdingPatients[i]);
+  populateEditModal(h);
   document.getElementById('editModal').style.display = 'flex';
 }
 
@@ -1533,10 +1557,11 @@ function closeEdit() {
   stopVoice();
   document.getElementById('editModal').style.display = 'none';
   editIndex = null;
+  editHoldId = null;
 }
 
 async function saveEdit() {
-  if (editIndex === null) return;
+  if (editMode === 'holding' ? editHoldId === null : editIndex === null) return;
   const name = document.getElementById('edit-name').value.trim();
   if (!name) { showToast('請輸入患者姓名', 'error'); return; }
 
@@ -1550,7 +1575,9 @@ async function saveEdit() {
   const note = document.getElementById('edit-note').value.trim();
 
   if (editMode === 'holding') {
-    holdingPatients[editIndex] = { name, category, detail, lab, color, amount, position, note, catId: editState.catId, selections: { ...editState } };
+    const idx = holdingPatients.findIndex(h => h.holdId === editHoldId);
+    if (idx === -1) { closeEdit(); return; }
+    holdingPatients[idx] = { holdId: editHoldId, name, category, detail, lab, color, amount, position, note, catId: editState.catId, selections: { ...editState } };
     saveHolding();
     renderHoldingList();
     closeEdit();
