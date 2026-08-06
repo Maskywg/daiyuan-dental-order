@@ -339,9 +339,17 @@
   <div id="main-summary"><span style="color:#a0aec0;font-size:0.85rem;">尚未填寫</span></div>
 </div>
 
+<button class="clear-btn" onclick="addToHolding()" style="margin-top:0;color:#dd6b20;border-color:#fbd38d;font-weight:700;">📥 存入保留區，換下一位患者</button>
+
+<!-- 保留區 -->
+<div class="card" id="holding-card" style="display:none;border:1.5px solid #dd6b20;">
+  <div class="field-label" style="color:#dd6b20;">📥 保留區（尚未上傳，可個別上傳或整批上傳）</div>
+  <div id="holding-list"></div>
+</div>
+
 <div class="status-bar" id="statusBar">點擊 🎤 開始語音輸入</div>
 
-<button class="submit-btn" onclick="playBell(); submitData()" id="submitBtn">上傳至 Google Sheet</button>
+<button class="submit-btn" onclick="playBell(); submitData()" id="submitBtn">⬆️ 上傳至 Google Sheet（含保留區整批上傳）</button>
 <button class="clear-btn" onclick="testConnection()" style="margin-top:8px;color:#0f766e;border-color:#99f6e4;">🔗 測試 Google Sheet 連線</button>
 <button class="clear-btn" onclick="diagnoseMic()" style="margin-top:4px;color:#805ad5;border-color:#e9d8fd;">🔍 語音診斷</button>
 <button class="clear-btn" onclick="clearAll()">清除重填</button>
@@ -827,6 +835,7 @@ function init() {
   document.getElementById('lab').addEventListener('change', renderMainSummary);
   document.getElementById('note').addEventListener('input', renderMainSummary);
   renderMainSummary();
+  renderHoldingList();
 }
 
 function summaryRow(icon, label, value, key, jumpId, placeholder) {
@@ -1147,45 +1156,183 @@ function mergeItemsForSubmit() {
   };
 }
 
+// ── 保留區（多位病患輸入到一半，先暫存不上傳，最後個別或整批上傳）──
+let holdingPatients = JSON.parse(localStorage.getItem('daiyuanHolding') || '[]');
+
+function hasFormData() {
+  const name = document.getElementById('name').value.trim();
+  return !!name || cartItems.length > 0 || !!mainState.catId;
+}
+
+function buildFullEntry() {
+  const name = document.getElementById('name').value.trim();
+  const merged = mergeItemsForSubmit();
+  return {
+    name,
+    category: merged ? merged.category : '',
+    detail: merged ? merged.detail : '',
+    color: merged ? merged.color : '',
+    amount: merged ? merged.amount : '',
+    position: merged ? merged.position : '',
+    lab: merged ? merged.lab : '',
+    note: merged ? merged.note : '',
+    catId: (merged && merged.single) ? mainState.catId : null,
+    selections: (merged && merged.single) ? { ...mainState } : null,
+  };
+}
+
+function saveHolding() {
+  localStorage.setItem('daiyuanHolding', JSON.stringify(holdingPatients));
+}
+
+function addToHolding() {
+  const name = document.getElementById('name').value.trim();
+  if (!name) { showToast('請輸入患者姓名', 'error'); return; }
+  const entry = buildFullEntry();
+  holdingPatients.push(entry);
+  saveHolding();
+  clearAll();
+  renderHoldingList();
+  showToast('✅ 已存入保留區，可繼續輸入下一位', 'success');
+}
+
+function removeHoldingItem(i) {
+  if (!confirm('確定要移除這筆保留資料？（尚未上傳，移除後需重新輸入）')) return;
+  holdingPatients.splice(i, 1);
+  saveHolding();
+  renderHoldingList();
+}
+
+function loadHoldingIntoForm(i) {
+  if (hasFormData() && !confirm('目前表單有尚未存入保留區的資料，取回這筆會覆蓋掉，確定嗎？')) return;
+  const h = holdingPatients[i];
+  clearAll();
+  document.getElementById('name').value = h.name || '';
+
+  if (h.selections && h.selections.catId) {
+    mainState.catId = h.selections.catId;
+    mainState.material = h.selections.material || null;
+    mainState.type = h.selections.type || null;
+    mainState.arch = h.selections.arch || null;
+    mainState.redo = !!h.selections.redo;
+    mainState.clear = !!h.selections.clear;
+    mainState.quantity = h.selections.quantity || null;
+    renderCatChips('main');
+    renderDetailFields('main');
+  } else {
+    const matched = CATEGORIES.find(c => c.label === h.category);
+    if (matched) selectCategory('main', matched.id);
+  }
+
+  const colorInput = document.getElementById('main-color');
+  if (colorInput) colorInput.value = h.color || '';
+  document.getElementById('main-amount').value = h.amount || '';
+  setLocChips('main-position', h.position || '');
+  document.getElementById('lab').value = h.lab || '';
+  document.getElementById('note').value = h.note || '';
+
+  holdingPatients.splice(i, 1);
+  saveHolding();
+  renderHoldingList();
+  renderMainSummary();
+  showToast('已取回，可繼續編輯', 'success');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderHoldingList() {
+  const card = document.getElementById('holding-card');
+  const el = document.getElementById('holding-list');
+  if (!holdingPatients.length) { card.style.display = 'none'; el.innerHTML = ''; return; }
+  card.style.display = 'block';
+  el.innerHTML = holdingPatients.map((h, i) => `
+    <div class="history-item" style="border-left-color:#dd6b20;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">
+        <div class="h-name">👤 ${h.name || '（未填姓名）'}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
+          <button onclick="loadHoldingIntoForm(${i})" style="background:#f0fdfa;border:1px solid #99f6e4;color:#0f766e;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">✏️ 取回編輯</button>
+          <button onclick="uploadHoldingItem(${i})" style="background:#dd6b20;border:1px solid #dd6b20;color:white;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">⬆️ 上傳</button>
+          <button onclick="removeHoldingItem(${i})" style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">🗑️ 移除</button>
+        </div>
+      </div>
+      <div class="h-row">📋 項目：${h.category || '—'}</div>
+      ${h.detail ? `<div class="h-row">🔎 明細：${h.detail}</div>` : ''}
+      ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
+      ${h.amount ? `<div class="h-row">💰 金額：${Number(h.amount).toLocaleString()}</div>` : ''}
+      ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
+      ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
+      ${h.note ? `<div class="h-row">📝 特殊標注：${h.note}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function uploadEntry(h) {
+  const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+  const params = new URLSearchParams({ action:'insert', id, name:h.name, category:h.category, detail:h.detail, lab:h.lab, color:h.color, amount:h.amount, position:h.position, note:h.note });
+  await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+  const historyItem = { name:h.name, catId:h.catId || null, category:h.category, detail:h.detail, lab:h.lab, color:h.color, amount:h.amount, position:h.position, note:h.note, id };
+  if (h.selections) historyItem.selections = h.selections;
+  addHistory(historyItem);
+}
+
+async function uploadHoldingItem(i) {
+  if (!scriptUrl) { showConfig(); return; }
+  const h = holdingPatients[i];
+  try {
+    await uploadEntry(h);
+    holdingPatients.splice(i, 1);
+    saveHolding();
+    renderHoldingList();
+    showToast('✅ 已上傳：' + h.name, 'success');
+  } catch (err) {
+    showToast('上傳失敗：' + err.message, 'error');
+  }
+}
+
 async function submitData() {
   if (!scriptUrl) {
     showConfig();
     return;
   }
-  const name = document.getElementById('name').value.trim();
-  if (!name) { showToast('請輸入患者姓名', 'error'); return; }
 
-  const merged = mergeItemsForSubmit();
-  const category = merged ? merged.category : '';
-  const detail = merged ? merged.detail : '';
-  const color = merged ? merged.color : '';
-  const amount = merged ? merged.amount : '';
-  const position = merged ? merged.position : '';
-  const lab = merged ? merged.lab : '';
-  const note = merged ? merged.note : '';
-  const isSingleItem = !cartItems.length;
+  if (hasFormData()) {
+    const name = document.getElementById('name').value.trim();
+    if (!name) { showToast('請輸入患者姓名', 'error'); return; }
+    const entry = buildFullEntry();
+    holdingPatients.push(entry);
+    saveHolding();
+    clearAll();
+    renderHoldingList();
+  }
+
+  if (!holdingPatients.length) { showToast('保留區沒有資料可上傳', 'error'); return; }
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  btn.textContent = '上傳中...';
 
-  try {
-    const id = Date.now().toString();
-    const params = new URLSearchParams({ action:'insert', id, name, category, detail, lab, color, amount, position, note });
-    await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
-    const historyItem = { name, catId: isSingleItem ? mainState.catId : null, category, detail, lab, color, amount, position, note, id };
-    if (isSingleItem) historyItem.selections = { ...mainState };
-    addHistory(historyItem);
-    showToast('✅ 上傳成功！', 'success');
-    cartItems = [];
-    renderCartItems();
-    clearAll();
-  } catch (err) {
-    showToast('上傳失敗：' + err.message, 'error');
+  const total = holdingPatients.length;
+  let successCount = 0;
+  const remaining = [];
+  for (const h of holdingPatients) {
+    try {
+      btn.textContent = `上傳中...（${successCount + 1}/${total}）`;
+      await uploadEntry(h);
+      successCount++;
+    } catch (err) {
+      remaining.push(h);
+    }
+  }
+  holdingPatients = remaining;
+  saveHolding();
+  renderHoldingList();
+
+  if (remaining.length) {
+    showToast(`⚠️ 已上傳 ${successCount} 筆，${remaining.length} 筆失敗仍留在保留區`, 'error');
+  } else {
+    showToast(`✅ 已整批上傳 ${successCount} 筆！`, 'success');
   }
 
   btn.disabled = false;
-  btn.textContent = '上傳至 Google Sheet';
+  btn.textContent = '⬆️ 上傳至 Google Sheet（含保留區整批上傳）';
 }
 
 function addHistory(h) {
