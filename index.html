@@ -265,8 +265,9 @@
   <div id="main-chip-groups"><div class="detail-hint">請先選擇上方的項目種類</div></div>
   <div id="main-color-row" style="display:none;margin-top:8px;">
     <div class="field-label" style="margin-top:8px;">顏色</div>
+    <div class="loc-group" id="main-color-chips" style="margin-bottom:8px;"></div>
     <div class="field-row">
-      <input id="main-color" type="text" placeholder="點此欄位，再按鍵盤🎤說話，或直接輸入">
+      <input id="main-color" type="text" placeholder="點上方色號快速選，或點此欄位輸入／🎤說話">
       <button class="mic-btn" id="mic-main-color" onclick="toggleVoice('main-color')" title="語音輸入">🎤</button>
     </div>
   </div>
@@ -398,6 +399,7 @@
       <div id="edit-chip-groups"><div class="detail-hint">請先選擇上方的項目種類</div></div>
       <div id="edit-color-row" style="display:none;margin-top:8px;">
         <div style="font-size:0.8rem;font-weight:600;color:#718096;margin:8px 0 6px;">顏色</div>
+        <div class="loc-group" id="edit-color-chips" style="margin-bottom:8px;"></div>
         <div class="field-row">
           <input id="edit-color" type="text">
           <button class="mic-btn" id="mic-edit-color" onclick="toggleVoice('edit-color')" style="margin-top:0">🎤</button>
@@ -688,6 +690,22 @@ function renderAmountChips(prefix) {
   ).join('');
 }
 
+// ── 假牙比色快速鍵（VITA 色階）──
+const COLOR_PRESETS = ['A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', '平山比色'];
+
+function pickColorPreset(prefix, shade) {
+  document.getElementById(prefix + '-color').value = shade;
+  if (prefix === 'main') renderMainSummary();
+}
+
+function renderColorChips(prefix) {
+  const el = document.getElementById(prefix + '-color-chips');
+  if (!el) return;
+  el.innerHTML = COLOR_PRESETS.map(c =>
+    `<button class="loc-chip" onclick="pickColorPreset('${prefix}','${c}')">${c}</button>`
+  ).join('');
+}
+
 let recognition = null;
 let currentField = null;
 let isListening = false;
@@ -829,6 +847,8 @@ function init() {
   renderDetailFields('edit');
   renderAmountChips('main');
   renderAmountChips('edit');
+  renderColorChips('main');
+  renderColorChips('edit');
   document.getElementById('name').addEventListener('input', () => { updateNameSuggestions('name'); renderMainSummary(); });
   document.getElementById('edit-name').addEventListener('input', () => updateNameSuggestions('edit-name'));
   document.getElementById('main-color').addEventListener('input', renderMainSummary);
