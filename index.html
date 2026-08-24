@@ -394,6 +394,11 @@
       <div class="quick-chips" id="edit-name-suggest" style="margin-top:6px;"></div>
     </div>
 
+    <div id="edit-cart-card" style="display:none;margin-bottom:12px;padding:10px;border:1.5px solid #0f766e;border-radius:10px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#0f766e;margin-bottom:6px;">🗂 已加入項目</div>
+      <div id="edit-cart-list"></div>
+    </div>
+
     <div style="margin-bottom:12px;">
       <div style="font-size:0.8rem;font-weight:600;color:#718096;margin-bottom:6px;">項目種類</div>
       <div class="loc-group" id="edit-cat-chips"></div>
@@ -442,6 +447,12 @@
       <div class="loc-preview" id="edit-position-preview"></div>
       <div class="loc-result" id="edit-position-result">尚未選擇</div>
       <input type="hidden" id="edit-position" value="">
+    </div>
+
+    <div style="margin-bottom:12px;padding:10px;border:1.5px dashed #99f6e4;border-radius:10px;">
+      <div style="font-size:0.8rem;font-weight:600;color:#0f766e;margin-bottom:6px;">📌 本項預覽</div>
+      <div class="loc-result" id="edit-staging-preview" style="margin-bottom:8px;"><span style="color:#a0aec0">尚未選擇項目</span></div>
+      <button onclick="addEditCartItem()" style="width:100%;padding:10px;background:#0f766e;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;">✓ 加入清單（可再新增下一項）</button>
     </div>
 
     <div style="margin-bottom:12px;">
@@ -635,6 +646,8 @@ function renderDetailFields(prefix) {
   if (!cat) {
     groupsEl.innerHTML = '<div class="detail-hint">請先選擇上方的項目種類</div>';
     colorRow.style.display = 'none';
+    if (prefix === 'main') renderMainSummary();
+    if (prefix === 'edit') renderEditStagingPreview();
     return;
   }
 
@@ -657,6 +670,7 @@ function renderDetailFields(prefix) {
   groupsEl.innerHTML = html;
   colorRow.style.display = cat.color ? 'block' : 'none';
   if (prefix === 'main') renderMainSummary();
+  if (prefix === 'edit') renderEditStagingPreview();
 }
 
 function summarizeDetail(prefix) {
@@ -685,6 +699,7 @@ const AMOUNT_PRESETS = [300, 500, 1000, 1500, 2000, 3000, 5000, 7000, 8000, 1000
 function pickAmount(prefix, amt) {
   document.getElementById(prefix + '-amount').value = amt;
   if (prefix === 'main') renderMainSummary();
+  if (prefix === 'edit') renderEditStagingPreview();
 }
 
 function renderAmountChips(prefix) {
@@ -701,6 +716,7 @@ const COLOR_PRESETS = ['A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'C1', '
 function pickColorPreset(prefix, shade) {
   document.getElementById(prefix + '-color').value = shade;
   if (prefix === 'main') renderMainSummary();
+  if (prefix === 'edit') renderEditStagingPreview();
 }
 
 function renderColorChips(prefix) {
@@ -860,7 +876,12 @@ function init() {
   document.getElementById('main-amount').addEventListener('input', renderMainSummary);
   document.getElementById('lab').addEventListener('change', renderMainSummary);
   document.getElementById('note').addEventListener('input', renderMainSummary);
+  document.getElementById('edit-color').addEventListener('input', renderEditStagingPreview);
+  document.getElementById('edit-amount').addEventListener('input', renderEditStagingPreview);
+  document.getElementById('edit-lab').addEventListener('change', renderEditStagingPreview);
+  document.getElementById('edit-note').addEventListener('input', renderEditStagingPreview);
   renderMainSummary();
+  renderEditStagingPreview();
   renderHoldingList();
 }
 
@@ -1058,6 +1079,7 @@ function stopVoice() {
     if (btn) { btn.classList.remove('active'); btn.textContent = '🎤'; }
     if (ta) ta.classList.remove('listening');
     if (currentField === 'name' || currentField === 'note' || currentField === 'main-color') renderMainSummary();
+    if (currentField === 'edit-note' || currentField === 'edit-color') renderEditStagingPreview();
   }
   isListening = false;
   currentField = null;
@@ -1185,15 +1207,18 @@ function renderCartItems() {
   `).join('');
 }
 
-function mergeItemsForSubmit() {
+function getPendingItems() {
   const cur = buildCurrentItem();
-  const items = cur ? [...cartItems, cur] : [...cartItems];
-  if (!items.length) return null;
+  return cur ? [...cartItems, cur] : [...cartItems];
+}
+
+function joinItemsForSave(items) {
   const join = (vals, sep) => vals.filter(Boolean).join(sep);
   const amountSum = items.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
   const single = items.length === 1;
   return {
     single,
+    items,
     category: join(items.map(it => it.category), '、'),
     detail: single
       ? items[0].detail
@@ -1204,6 +1229,108 @@ function mergeItemsForSubmit() {
     lab: join(items.map(it => it.lab), '、'),
     note: join(items.map(it => it.note), '；'),
   };
+}
+
+function mergeItemsForSubmit() {
+  const items = getPendingItems();
+  if (!items.length) return null;
+  return joinItemsForSave(items);
+}
+
+// ── 編輯 Modal 內的多項目清單（修改既有紀錄時，一樣可以連續加入多項）──
+let editCartItems = [];
+
+function buildCurrentEditItem() {
+  const cat = getCat(editState.catId);
+  if (!cat) return null;
+  return {
+    category: cat.label,
+    detail: summarizeDetail('edit'),
+    color: cat.color ? document.getElementById('edit-color').value.trim() : '',
+    amount: document.getElementById('edit-amount').value.trim(),
+    position: document.getElementById('edit-position').value.trim(),
+    lab: document.getElementById('edit-lab').value,
+    note: document.getElementById('edit-note').value.trim(),
+  };
+}
+
+function clearEditItemFields() {
+  resetCategoryState('edit');
+  const colorInput = document.getElementById('edit-color');
+  if (colorInput) colorInput.value = '';
+  document.getElementById('edit-amount').value = '';
+  document.getElementById('edit-lab').value = '';
+  const noteTa = document.getElementById('edit-note');
+  noteTa.value = ''; noteTa.style.height = '';
+  clearLocChips('edit-position');
+}
+
+function renderEditStagingPreview() {
+  const el = document.getElementById('edit-staging-preview');
+  if (!el) return;
+  const cat = getCat(editState.catId);
+  if (!cat) { el.innerHTML = '<span style="color:#a0aec0">尚未選擇項目</span>'; return; }
+  const detail = summarizeDetail('edit');
+  const colorEl = document.getElementById('edit-color');
+  const color = cat.color && colorEl ? colorEl.value.trim() : '';
+  const amount = document.getElementById('edit-amount').value.trim();
+  const position = document.getElementById('edit-position').value.trim();
+  const lab = document.getElementById('edit-lab').value;
+  const note = document.getElementById('edit-note').value.trim();
+  const pills = [`${cat.icon} ${cat.label}`];
+  if (detail) pills.push(detail);
+  if (position) pills.push('📍 ' + position);
+  if (color) pills.push('🎨 ' + color);
+  if (amount) pills.push('💰 ' + Number(amount).toLocaleString());
+  if (lab) pills.push('🏭 ' + lab);
+  if (note) pills.push('📝 ' + note);
+  el.innerHTML = pills.map(p => `<span class="loc-tag">${p}</span>`).join('');
+}
+
+function renderEditCartItems() {
+  const card = document.getElementById('edit-cart-card');
+  const el = document.getElementById('edit-cart-list');
+  if (!card || !el) return;
+  if (!editCartItems.length) { card.style.display = 'none'; el.innerHTML = ''; return; }
+  card.style.display = 'block';
+  el.innerHTML = editCartItems.map((it, i) => `
+    <div class="history-item" style="margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="h-name" style="font-size:0.85rem;">${i + 1}. ${it.category}${it.detail ? `（${it.detail}）` : ''}</div>
+        <button onclick="removeEditCartItem(${i})" style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:2px 8px;font-size:0.75rem;cursor:pointer;flex-shrink:0;margin-left:8px;">🗑️</button>
+      </div>
+      ${it.position ? `<div class="h-row" style="font-size:0.78rem;">📍 ${it.position}</div>` : ''}
+      ${it.color ? `<div class="h-row" style="font-size:0.78rem;">🎨 ${it.color}</div>` : ''}
+      ${it.amount ? `<div class="h-row" style="font-size:0.78rem;">💰 ${Number(it.amount).toLocaleString()}</div>` : ''}
+      ${it.lab ? `<div class="h-row" style="font-size:0.78rem;">🏭 ${it.lab}</div>` : ''}
+      ${it.note ? `<div class="h-row" style="font-size:0.78rem;">📝 ${it.note}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function removeEditCartItem(i) {
+  editCartItems.splice(i, 1);
+  renderEditCartItems();
+}
+
+function addEditCartItem() {
+  const item = buildCurrentEditItem();
+  if (!item) { showToast('請先選擇項目種類', 'error'); return; }
+  editCartItems.push(item);
+  clearEditItemFields();
+  renderEditCartItems();
+  showToast('✅ 已加入清單，可繼續新增下一項', 'success');
+}
+
+function getPendingEditItems() {
+  const cur = buildCurrentEditItem();
+  return cur ? [...editCartItems, cur] : [...editCartItems];
+}
+
+function mergeEditItemsForSave() {
+  const items = getPendingEditItems();
+  if (!items.length) return null;
+  return joinItemsForSave(items);
 }
 
 // ── 保留區（多位病患輸入到一半，先暫存不上傳，最後個別或整批上傳）──
@@ -1228,6 +1355,7 @@ function buildFullEntry() {
     note: merged ? merged.note : '',
     catId: (merged && merged.single) ? mainState.catId : null,
     selections: (merged && merged.single) ? { ...mainState } : null,
+    items: merged ? merged.items : [],
   };
 }
 
@@ -1302,6 +1430,7 @@ async function uploadEntry(h) {
   }
   const historyItem = { name:h.name, catId:h.catId || null, category:h.category, detail:h.detail, lab:h.lab, color:h.color, amount:h.amount, position:h.position, note:h.note, id };
   if (h.selections) historyItem.selections = h.selections;
+  if (h.items) historyItem.items = h.items;
   addHistory(historyItem);
 }
 
@@ -1522,6 +1651,7 @@ function updateLocDisplay(fieldId) {
     }
   }
   if (fieldId === 'main-position') renderMainSummary();
+  if (fieldId === 'edit-position') renderEditStagingPreview();
 }
 
 function clearLocChips(fieldId) {
@@ -1572,29 +1702,47 @@ let editMode = 'history'; // 'history'：修改已上傳的今日紀錄（會呼
 function populateEditModal(h) {
   document.getElementById('edit-name').value = h.name || '';
   document.getElementById('edit-name-suggest').innerHTML = '';
+  editCartItems = [];
 
-  if (h.selections && h.selections.catId) {
-    editState.catId = h.selections.catId;
-    editState.material = h.selections.material || null;
-    editState.type = h.selections.type || null;
-    editState.arch = h.selections.arch || null;
-    editState.redo = !!h.selections.redo;
-    editState.clear = !!h.selections.clear;
-    editState.quantity = h.selections.quantity || null;
+  const multiItems = h.items && h.items.length > 1 ? h.items : null;
+
+  if (multiItems) {
+    // 這筆是彙整多項合併來的，把每一項都還原進「已加入項目」清單，
+    // 下方明細欄位留空讓使用者可以再新增，或個別刪除清單裡的項目。
+    editCartItems = multiItems.map(it => ({ ...it }));
+    editState.catId = null; editState.material = null; editState.type = null; editState.arch = null; editState.redo = false; editState.clear = false; editState.quantity = null;
+    renderCatChips('edit');
+    renderDetailFields('edit');
+    const colorInput = document.getElementById('edit-color');
+    if (colorInput) colorInput.value = '';
+    document.getElementById('edit-amount').value = '';
+    document.getElementById('edit-note').value = '';
+    setLocChips('edit-position', '');
+    document.getElementById('edit-lab').value = '';
   } else {
-    const matched = CATEGORIES.find(c => c.label === h.category);
-    editState.catId = matched ? matched.id : null;
-    editState.material = null; editState.type = null; editState.arch = null; editState.redo = false; editState.clear = false; editState.quantity = null;
+    if (h.selections && h.selections.catId) {
+      editState.catId = h.selections.catId;
+      editState.material = h.selections.material || null;
+      editState.type = h.selections.type || null;
+      editState.arch = h.selections.arch || null;
+      editState.redo = !!h.selections.redo;
+      editState.clear = !!h.selections.clear;
+      editState.quantity = h.selections.quantity || null;
+    } else {
+      const matched = CATEGORIES.find(c => c.label === h.category);
+      editState.catId = matched ? matched.id : null;
+      editState.material = null; editState.type = null; editState.arch = null; editState.redo = false; editState.clear = false; editState.quantity = null;
+    }
+    renderCatChips('edit');
+    renderDetailFields('edit');
+    const colorInput = document.getElementById('edit-color');
+    if (colorInput) colorInput.value = h.color || '';
+    document.getElementById('edit-amount').value = h.amount || '';
+    document.getElementById('edit-note').value = h.note || '';
+    setLocChips('edit-position', h.position || '');
+    document.getElementById('edit-lab').value = h.lab || '';
   }
-  renderCatChips('edit');
-  renderDetailFields('edit');
-  const colorInput = document.getElementById('edit-color');
-  if (colorInput) colorInput.value = h.color || '';
-  document.getElementById('edit-amount').value = h.amount || '';
-  document.getElementById('edit-note').value = h.note || '';
-
-  setLocChips('edit-position', h.position || '');
-  document.getElementById('edit-lab').value = h.lab || '';
+  renderEditCartItems();
 }
 
 function openEdit(i) {
@@ -1621,6 +1769,7 @@ function closeEdit() {
   document.getElementById('editModal').style.display = 'none';
   editIndex = null;
   editHoldId = null;
+  editCartItems = [];
 }
 
 async function saveEdit() {
@@ -1628,19 +1777,22 @@ async function saveEdit() {
   const name = document.getElementById('edit-name').value.trim();
   if (!name) { showToast('請輸入患者姓名', 'error'); return; }
 
-  const cat = getCat(editState.catId);
-  const category = cat ? cat.label : '';
-  const detail = cat ? summarizeDetail('edit') : '';
-  const color = cat && cat.color ? document.getElementById('edit-color').value.trim() : '';
-  const amount = document.getElementById('edit-amount').value.trim();
-  const position = document.getElementById('edit-position').value;
-  const lab = document.getElementById('edit-lab').value;
-  const note = document.getElementById('edit-note').value.trim();
+  const merged = mergeEditItemsForSave();
+  const category = merged ? merged.category : '';
+  const detail = merged ? merged.detail : '';
+  const color = merged ? merged.color : '';
+  const amount = merged ? merged.amount : '';
+  const position = merged ? merged.position : '';
+  const lab = merged ? merged.lab : '';
+  const note = merged ? merged.note : '';
+  const items = merged ? merged.items : [];
+  const catId = (merged && merged.single) ? editState.catId : null;
+  const selections = (merged && merged.single) ? { ...editState } : null;
 
   if (editMode === 'holding') {
     const idx = holdingPatients.findIndex(h => h.holdId === editHoldId);
     if (idx === -1) { closeEdit(); return; }
-    holdingPatients[idx] = { holdId: editHoldId, name, category, detail, lab, color, amount, position, note, catId: editState.catId, selections: { ...editState } };
+    holdingPatients[idx] = { holdId: editHoldId, name, category, detail, lab, color, amount, position, note, catId, selections, items };
     saveHolding();
     renderHoldingList();
     closeEdit();
@@ -1658,7 +1810,7 @@ async function saveEdit() {
       const params = new URLSearchParams({ action:'update', id:h.id, name, category, detail, lab, color, amount, position, note });
       await fetch(scriptUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
     }
-    history[editIndex] = { ...h, name, category, detail, lab, color, amount, position, note, selections: { ...editState } };
+    history[editIndex] = { ...h, name, category, detail, lab, color, amount, position, note, catId, selections, items };
     localStorage.setItem('daiyuanHistory', JSON.stringify(history));
     renderHistory();
     closeEdit();
