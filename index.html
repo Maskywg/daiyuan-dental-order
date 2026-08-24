@@ -273,6 +273,34 @@
   </div>
 </div>
 
+<!-- 技工所 -->
+<div class="card">
+  <div class="field-label">技工所</div>
+  <select id="lab">
+    <option value="">— 不需技工所 —</option>
+    <option value="平山">平山</option>
+    <option value="柏創">柏創</option>
+    <option value="京典">京典</option>
+    <option value="美加">美加</option>
+  </select>
+</div>
+
+<!-- 金額 -->
+<div class="card">
+  <div class="field-label" style="font-size:1.1rem;color:#e53e3e;">金額</div>
+  <div class="field-row"><input id="main-amount" type="number" inputmode="numeric" placeholder="輸入金額"></div>
+  <div class="loc-group" id="main-amount-chips" style="margin-top:8px;"></div>
+</div>
+
+<!-- 特殊標注事項 -->
+<div class="card">
+  <div class="field-label">特殊標注事項</div>
+  <div class="field-row">
+    <textarea id="note" rows="2" placeholder="點此欄位，再按鍵盤🎤說話，或直接輸入"></textarea>
+    <button class="mic-btn" id="mic-note" onclick="toggleVoice('note')" title="語音輸入">🎤</button>
+  </div>
+</div>
+
 <!-- 部位 -->
 <div class="card">
   <div class="field-label">部位</div>
@@ -304,35 +332,12 @@
   <input type="hidden" id="main-position" value="">
 </div>
 
-<!-- 技工所 -->
-<div class="card">
-  <div class="field-label">技工所</div>
-  <select id="lab">
-    <option value="">— 不需技工所 —</option>
-    <option value="平山">平山</option>
-    <option value="柏創">柏創</option>
-    <option value="京典">京典</option>
-    <option value="美加">美加</option>
-  </select>
+<!-- 彙整暫存區：比照語音醫囑系統的「加入彙整」模式 -->
+<div class="card" id="main-staging-card" style="border:1.5px dashed #99f6e4;">
+  <div class="field-label">📌 本項預覽（點下方加入清單後才會送出）</div>
+  <div class="loc-result" id="main-staging-preview" style="margin-bottom:10px;"><span style="color:#a0aec0">尚未選擇項目</span></div>
+  <button class="clear-btn" onclick="addCartItem()" style="margin-top:0;background:#0f766e;color:white;border-color:#0f766e;font-weight:700;">✓ 加入清單，繼續輸入下一項</button>
 </div>
-
-<!-- 金額 -->
-<div class="card">
-  <div class="field-label" style="font-size:1.1rem;color:#e53e3e;">金額</div>
-  <div class="field-row"><input id="main-amount" type="number" inputmode="numeric" placeholder="輸入金額"></div>
-  <div class="loc-group" id="main-amount-chips" style="margin-top:8px;"></div>
-</div>
-
-<!-- 特殊標注事項 -->
-<div class="card">
-  <div class="field-label">特殊標注事項</div>
-  <div class="field-row">
-    <textarea id="note" rows="2" placeholder="點此欄位，再按鍵盤🎤說話，或直接輸入"></textarea>
-    <button class="mic-btn" id="mic-note" onclick="toggleVoice('note')" title="語音輸入">🎤</button>
-  </div>
-</div>
-
-<button class="clear-btn" onclick="addCartItem()" style="margin-top:0;color:#0f766e;border-color:#99f6e4;font-weight:700;">➕ 加入此項目，繼續新增下一項</button>
 
 <!-- 確認資料 -->
 <div class="card" id="main-summary-card" style="border:1.5px solid #99f6e4;">
@@ -903,7 +908,31 @@ function clearSummaryField(key) {
   renderMainSummary();
 }
 
+function renderMainStagingPreview() {
+  const el = document.getElementById('main-staging-preview');
+  if (!el) return;
+  const cat = getCat(mainState.catId);
+  if (!cat) { el.innerHTML = '<span style="color:#a0aec0">尚未選擇項目</span>'; return; }
+  const detail = summarizeDetail('main');
+  const colorEl = document.getElementById('main-color');
+  const color = cat.color && colorEl ? colorEl.value.trim() : '';
+  const amount = document.getElementById('main-amount').value.trim();
+  const position = document.getElementById('main-position').value.trim();
+  const lab = document.getElementById('lab').value;
+  const note = document.getElementById('note').value.trim();
+
+  const pills = [`${cat.icon} ${cat.label}`];
+  if (detail) pills.push(detail);
+  if (position) pills.push('📍 ' + position);
+  if (color) pills.push('🎨 ' + color);
+  if (amount) pills.push('💰 ' + Number(amount).toLocaleString());
+  if (lab) pills.push('🏭 ' + lab);
+  if (note) pills.push('📝 ' + note);
+  el.innerHTML = pills.map(p => `<span class="loc-tag">${p}</span>`).join('');
+}
+
 function renderMainSummary() {
+  renderMainStagingPreview();
   const el = document.getElementById('main-summary');
   if (!el) return;
   const name = document.getElementById('name').value.trim();
