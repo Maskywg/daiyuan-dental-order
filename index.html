@@ -1385,6 +1385,33 @@ function removeHoldingItem(holdId) {
   renderHoldingList();
 }
 
+// 一筆紀錄若是彙整多項合併而成（h.items 有 2 筆以上），分開顯示每一項，
+// 避免像「項目：固定假牙、固定假牙」「部位：左上7、左上56」擠成一團難以閱讀；
+// Google Sheet 那份合併字串不受影響，只有畫面呈現改變。
+function renderEntryFields(h) {
+  if (h.items && h.items.length > 1) {
+    return h.items.map((it, i) => `
+      <div style="margin-top:${i === 0 ? '4px' : '8px'};padding:8px 10px;background:rgba(15,118,110,0.05);border-radius:8px;border-left:3px solid #0f766e;">
+        <div style="font-weight:700;color:#0f766e;font-size:0.85rem;">${i + 1}. ${it.category}${it.detail ? `（${it.detail}）` : ''}</div>
+        ${it.color ? `<div class="h-row">🎨 顏色：${it.color}</div>` : ''}
+        ${it.amount ? `<div class="h-row">💰 金額：${Number(it.amount).toLocaleString()}</div>` : ''}
+        ${it.position ? `<div class="h-row">📍 部位：${it.position}</div>` : ''}
+        ${it.lab ? `<div class="h-row">🏭 技工所：${it.lab}</div>` : ''}
+        ${it.note ? `<div class="h-row">📝 特殊標注：${it.note}</div>` : ''}
+      </div>
+    `).join('');
+  }
+  return `
+    <div class="h-row">📋 項目：${h.category || '—'}</div>
+    ${h.detail ? `<div class="h-row">🔎 明細：${h.detail}</div>` : ''}
+    ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
+    ${h.amount ? `<div class="h-row">💰 金額：${Number(h.amount).toLocaleString()}</div>` : ''}
+    ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
+    ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
+    ${h.note ? `<div class="h-row">📝 特殊標注：${h.note}</div>` : ''}
+  `;
+}
+
 function renderHoldingList() {
   const card = document.getElementById('holding-card');
   const el = document.getElementById('holding-list');
@@ -1402,13 +1429,7 @@ function renderHoldingList() {
           <button onclick="removeHoldingItem('${h.holdId}')" ${uploading ? 'disabled' : ''} style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:${uploading ? 'not-allowed' : 'pointer'};pointer-events:${uploading ? 'none' : 'auto'};opacity:${uploading ? '0.5' : '1'};">🗑️ 移除</button>
         </div>
       </div>
-      <div class="h-row">📋 項目：${h.category || '—'}</div>
-      ${h.detail ? `<div class="h-row">🔎 明細：${h.detail}</div>` : ''}
-      ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
-      ${h.amount ? `<div class="h-row">💰 金額：${Number(h.amount).toLocaleString()}</div>` : ''}
-      ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
-      ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
-      ${h.note ? `<div class="h-row">📝 特殊標注：${h.note}</div>` : ''}
+      ${renderEntryFields(h)}
     </div>
   `;
   }).join('');
@@ -1530,13 +1551,7 @@ function renderHistory() {
           <button onclick="deleteHistoryItem(${i})" style="background:#fff5f5;border:1px solid #fed7d7;color:#c53030;border-radius:8px;padding:4px 10px;font-size:0.8rem;cursor:pointer;">🗑️ 刪除</button>
         </div>
       </div>
-      <div class="h-row">📋 項目：${h.category || '—'}</div>
-      ${h.detail ? `<div class="h-row">🔎 明細：${h.detail}</div>` : ''}
-      ${h.color ? `<div class="h-row">🎨 顏色：${h.color}</div>` : ''}
-      ${h.amount ? `<div class="h-row">💰 金額：${Number(h.amount).toLocaleString()}</div>` : ''}
-      ${h.position ? `<div class="h-row">📍 部位：${h.position}</div>` : ''}
-      ${h.lab ? `<div class="h-row">🏭 技工所：${h.lab}</div>` : ''}
-      ${h.note ? `<div class="h-row">📝 特殊標注：${h.note}</div>` : ''}
+      ${renderEntryFields(h)}
       <div class="h-time">${h.time}</div>
     </div>
   `).join('');
